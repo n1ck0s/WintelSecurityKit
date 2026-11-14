@@ -2,6 +2,14 @@
 
 A portable PowerShell application for read-only, local Windows Server posture assessment. It provides a Windows Forms interface, command line and self-contained HTML/JSON/CSV reports. No external libraries, installers or internet access are required at runtime.
 
+**See what a scan produces:** [Sample findings and output guide](Samples/Demo/README.md) · [Console transcript](Samples/Demo/CONSOLE.txt) · [CSV](Samples/Demo/SecurityAssessment.csv) · [JSON](Samples/Demo/SecurityAssessment.json). To try the interactive report, extract [the portable kit](Dist/WintelSecurityKit-0.1.0.zip) and open `Samples\Demo\SecurityAssessment.html` in your browser.
+
+| Synthetic Server 2022 member server | Pass | Fail | Review | Error | Excepted | Not applicable |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Windows Server Foundation · 40 controls | 20 | 6 | 11 | 2 | 0 | 1 |
+
+[![Preview of the synthetic Windows Server assessment report](Samples/Demo/Report-preview.png)](Samples/Demo/README.md)
+
 The bundled foundation profile includes **32 automated checks and 8 manual evidence prompts**. It is an original, documented settings profile, not a complete CIS benchmark, Microsoft baseline, STIG assessment or Essential Eight maturity assessment. See [sources and policy choices](Docs/SOURCES.md) and the included [synthetic sample report](Samples/Demo/SecurityAssessment.html).
 
 For a comparison with published Microsoft values, select `Baselines\microsoft-windows-server-subset.v1.json` in the GUI's **Baseline JSON** field or pass its path to the CLI. This profile checks selected settings from Microsoft's Azure compute security baseline. The [mapping notes](Docs/MICROSOFT-SUBSET.md) identify the source and scope of each setting.

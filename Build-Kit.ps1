@@ -13,6 +13,7 @@ $releaseFiles = @(
     'Baselines\windows-server-foundation.v1.json','Baselines\microsoft-windows-server-subset.v1.json',
     'Docs\BASELINE-FORMAT.md','Docs\SOURCES.md','Docs\MICROSOFT-SUBSET.md','Docs\PILOT-ACCEPTANCE.md',
     'Samples\exceptions.example.json','Samples\Demo\SecurityAssessment.html','Samples\Demo\SecurityAssessment.json','Samples\Demo\SecurityAssessment.csv',
+    'Samples\Demo\README.md','Samples\Demo\CONSOLE.txt','Samples\Demo\Report-preview.png',
     'Tests\Test-Kit.ps1','Tests\Test-Collectors.ps1','Tests\Test-Gui.ps1'
 )
 $files = @(foreach ($relative in $releaseFiles) {
