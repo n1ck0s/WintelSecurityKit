@@ -1,8 +1,8 @@
-# Wintel Security Kit 0.1.0
+# Wintel Security Kit 0.1.1
 
 A portable PowerShell application for read-only, local Windows Server posture assessment. It provides a Windows Forms interface, command line and self-contained HTML/JSON/CSV reports. No external libraries, installers or internet access are required at runtime.
 
-**See what a scan produces:** [Sample findings and output guide](Samples/Demo/README.md) · [Console transcript](Samples/Demo/CONSOLE.txt) · [CSV](Samples/Demo/SecurityAssessment.csv) · [JSON](Samples/Demo/SecurityAssessment.json). To try the interactive report, extract [the portable kit](Dist/WintelSecurityKit-0.1.0.zip) and open `Samples\Demo\SecurityAssessment.html` in your browser.
+**See what a scan produces:** [Sample findings and output guide](Samples/Demo/README.md) · [Console transcript](Samples/Demo/CONSOLE.txt) · [CSV](Samples/Demo/SecurityAssessment.csv) · [JSON](Samples/Demo/SecurityAssessment.json). To try the interactive report, extract [the portable kit](Dist/WintelSecurityKit-0.1.1.zip) and open `Samples\Demo\SecurityAssessment.html` in your browser.
 
 | Synthetic Server 2022 member server | Pass | Fail | Review | Error | Excepted | Not applicable |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -19,7 +19,7 @@ For a comparison with published Microsoft values, select `Baselines\microsoft-wi
 1. Extract the complete kit folder to a local directory on the target server.
 2. Review the source and baseline through your normal software approval process. The package is source code and is not Authenticode-signed; use your organisation's trusted signing and script execution policy.
 3. Open **64-bit Windows PowerShell 5.1**, as administrator for fuller evidence collection, and change to the extracted folder.
-4. Run `Start-WintelSecurityGui.ps1` or `Launch-GUI.cmd`. Choose **Run sample** for a synthetic preview, or **Run assessment** on a supported server.
+4. Run `Start-WintelSecurityGui.ps1` or `Launch-GUI.cmd`. Choose **Load sample**, then **Open HTML report** for the bundled synthetic example. Choose **Run assessment** for a live scan on the supported server where the GUI is running.
 
 ```powershell
 .\Start-WintelSecurityGui.ps1
@@ -36,6 +36,8 @@ For a comparison with published Microsoft values, select `Baselines\microsoft-wi
 # Use a reviewed customer profile and approved exceptions.
 .\Invoke-WintelSecurityAssessment.ps1 -BaselinePath '.\Baselines\customer.json' -ExceptionsPath '.\client-exceptions.json'
 ```
+
+If the GUI opens but the assessment immediately reports **AuthorizationManager check failed**, [diagnose the startup failure](Docs/STARTUP.md). The bundled sample can be viewed directly in a browser. A live run starts a separate PowerShell process and loads the runner and modules under Windows policy.
 
 The launcher does not elevate itself or bypass execution policy. If Windows blocks scripts, arrange approved signing/execution policy with your endpoint administrators. Group Policy, application control, constrained language mode and downloaded-file restrictions can also prevent execution. Do not weaken server controls to run this kit.
 
@@ -121,6 +123,6 @@ For formal CIS work, obtain the exact licensed benchmark/version for each role a
 
 Tests use synthetic evidence and mocks, not a live host assessment. Coverage includes schema rejection, typed evaluation, role applicability, exceptions, missing evidence, collectors, report escaping and GUI/process behavior.
 
-Build-Kit creates `Dist\WintelSecurityKit-0.1.0.zip`, its SHA-256 sidecar and `SHA256SUMS.txt`. It excludes live reports and test output. Hashes detect alteration; they are not a publisher signature.
+Build-Kit creates `Dist\WintelSecurityKit-0.1.1.zip`, its SHA-256 sidecar and `SHA256SUMS.txt`. It excludes live reports and test output. Hashes detect alteration; they are not a publisher signature.
 
 **Validation boundary:** PowerShell 5.1 synthetic and mocked tests have run on a Windows workstation. Live pilot validation remains necessary on representative Server 2019/2022/2025 member servers and domain controllers, including Server Core. Follow [PILOT-ACCEPTANCE.md](Docs/PILOT-ACCEPTANCE.md).

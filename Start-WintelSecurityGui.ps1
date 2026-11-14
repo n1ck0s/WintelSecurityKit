@@ -8,12 +8,22 @@ param()
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
-if ($env:OS -ne 'Windows_NT' -or $PSVersionTable.PSEdition -ne 'Desktop' -or -not [Environment]::Is64BitProcess) {
-    throw 'The graphical launcher requires 64-bit Windows PowerShell 5.1. Use the command-line entry point on Server Core.'
+if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
+    throw 'WinForms requires FullLanguage mode. Use a session and kit copy approved by your application control policy.'
 }
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-[Windows.Forms.Application]::EnableVisualStyles()
+if ($env:OS -ne 'Windows_NT' -or $PSVersionTable.PSEdition -ne 'Desktop' -or -not [Environment]::Is64BitProcess) {
+    throw 'Open Launch-GUI.cmd with 64-bit Windows PowerShell 5.1. Use Invoke-WintelSecurityAssessment.ps1 on Server Core.'
+}
+if ([Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
+    throw 'The graphical launcher needs an STA session. Open Launch-GUI.cmd or run powershell.exe -STA -File .\Start-WintelSecurityGui.ps1.'
+}
+try {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+    [Windows.Forms.Application]::EnableVisualStyles()
+} catch {
+    throw "Windows Forms could not start. Use Invoke-WintelSecurityAssessment.ps1 on Server Core. $($_.Exception.Message)"
+}
 
 function ConvertTo-WskProcessArgument {
     param([AllowEmptyString()][string]$Value)
@@ -61,7 +71,7 @@ foreach ($height in @(57, 44, 44, 44, 44, 46, 40)) { [void]$body.RowStyles.Add((
 $form.Controls.Add($body); $body.BringToFront()
 
 $scope = New-Object Windows.Forms.Label
-$scope.Text = 'Local assessment; no configuration changes; unknown is not pass; baseline subset, not CIS certification.' + [Environment]::NewLine + 'Use an elevated session for live collection. Run sample uses synthetic evidence and can run on a workstation.'
+$scope.Text = 'Read-only local assessment. Missing evidence requires review. Each profile covers a subset of Windows Server controls.' + [Environment]::NewLine + 'Run assessment checks this server. Load sample opens the bundled example for review.'
 $scope.Dock = 'Fill'; $scope.ForeColor = [Drawing.Color]::FromArgb(60, 83, 100)
 $body.Controls.Add($scope, 0, 0); $body.SetColumnSpan($scope, 3)
 
@@ -108,7 +118,7 @@ $runButton = New-Object Windows.Forms.Button
 $runButton.Text = 'Run assessment'; $runButton.Size = New-Object Drawing.Size(160, 36)
 $runButton.BackColor = [Drawing.Color]::FromArgb(8, 127, 131); $runButton.ForeColor = [Drawing.Color]::White; $runButton.FlatStyle = 'Flat'
 $sampleButton = New-Object Windows.Forms.Button
-$sampleButton.Text = 'Run sample'; $sampleButton.Size = New-Object Drawing.Size(130, 36)
+$sampleButton.Text = 'Load sample'; $sampleButton.Size = New-Object Drawing.Size(130, 36)
 $openButton = New-Object Windows.Forms.Button
 $openButton.Text = 'Open HTML report'; $openButton.Size = New-Object Drawing.Size(160, 36); $openButton.Enabled = $false
 $buttons.Controls.AddRange(@($runButton, $sampleButton, $openButton)); $body.Controls.Add($buttons, 0, 5); $body.SetColumnSpan($buttons, 3)
@@ -130,9 +140,32 @@ function Set-WskRunningState {
     foreach ($control in @($runButton, $sampleButton, $clientField, $baselineField, $exceptionField, $outputField, $baselineButton, $exceptionButton, $outputButton)) { $control.Enabled = -not $Running }
     $openButton.Enabled = (-not $Running -and -not [string]::IsNullOrWhiteSpace($script:lastHtmlPath))
 }
+function Show-WskBundledSample {
+    if ($null -ne $script:scanProcess) { return }
+    $script:lastHtmlPath = $null
+    try {
+        $sampleDirectory = Join-Path $script:kitRoot 'Samples\Demo'
+        $samplePath = Join-Path $sampleDirectory 'SecurityAssessment.html'
+        if (-not [IO.File]::Exists($samplePath)) { throw "Missing bundled report: $samplePath" }
+        $sample = Get-Content -LiteralPath (Join-Path $sampleDirectory 'SecurityAssessment.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($sample.Mode -ne 'Demo' -or $sample.Summary.Total -le 0) { throw 'The packaged sample JSON is invalid.' }
+        $logBox.Text = "Bundled synthetic example for $($sample.Context.ComputerName)" + [Environment]::NewLine +
+            "Baseline: $($sample.Baseline.Name) $($sample.Baseline.Version)" + [Environment]::NewLine +
+            "Pass: $($sample.Summary.Pass)  Fail: $($sample.Summary.Fail)  Review: $($sample.Summary.Review)  Error: $($sample.Summary.Error)  Excepted: $($sample.Summary.Excepted)  Not applicable: $($sample.Summary.NotApplicable)" + [Environment]::NewLine +
+            "Report: $samplePath"
+        $script:lastHtmlPath = $samplePath
+        $statusLabel.Text = 'Bundled synthetic sample loaded. Select Open HTML report.'
+    } catch {
+        $statusLabel.Text = 'Unable to load the bundled sample.'
+        $logBox.Text = $_.Exception.Message + [Environment]::NewLine + 'Extract the complete kit, including the Samples\Demo folder.'
+    }
+    Set-WskRunningState $false
+}
 function Start-WskAssessment {
     param([bool]$Demo)
     if ($null -ne $script:scanProcess) { return }
+    $script:lastHtmlPath = $null
+    $openButton.Enabled = $false
     try {
         if ([string]::IsNullOrWhiteSpace($outputField.Text)) { throw 'Choose a reports folder.' }
         $entryPoint = Join-Path $script:kitRoot 'Invoke-WintelSecurityAssessment.ps1'
@@ -142,8 +175,8 @@ function Start-WskAssessment {
         }
         $script:activeOutput = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($outputField.Text)
         $arguments = @('-NoLogo', '-NoProfile', '-NonInteractive', '-File', $entryPoint, '-OutputDirectory', $script:activeOutput)
-        if (-not [string]::IsNullOrWhiteSpace($baselineField.Text)) { $arguments += @('-BaselinePath', [IO.Path]::GetFullPath($baselineField.Text)) }
-        if (-not [string]::IsNullOrWhiteSpace($exceptionField.Text)) { $arguments += @('-ExceptionsPath', [IO.Path]::GetFullPath($exceptionField.Text)) }
+        if (-not [string]::IsNullOrWhiteSpace($baselineField.Text)) { $arguments += @('-BaselinePath', (Resolve-Path -LiteralPath $baselineField.Text).ProviderPath) }
+        if (-not [string]::IsNullOrWhiteSpace($exceptionField.Text)) { $arguments += @('-ExceptionsPath', (Resolve-Path -LiteralPath $exceptionField.Text).ProviderPath) }
         if (-not [string]::IsNullOrWhiteSpace($clientField.Text)) { $arguments += @('-ClientName', $clientField.Text) }
         if ($Demo) { $arguments += '-Demo' }
         $info = New-Object Diagnostics.ProcessStartInfo
@@ -153,12 +186,11 @@ function Start-WskAssessment {
         $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true
         $script:scanProcess = New-Object Diagnostics.Process
         $script:scanProcess.StartInfo = $info
+        $script:startedAt = [DateTime]::UtcNow
         [void]$script:scanProcess.Start()
         # Drain both pipes concurrently; polling only completed tasks keeps the UI responsive.
         $script:stdoutTask = $script:scanProcess.StandardOutput.ReadToEndAsync()
         $script:stderrTask = $script:scanProcess.StandardError.ReadToEndAsync()
-        $script:startedAt = [DateTime]::UtcNow
-        $script:lastHtmlPath = $null
         $logBox.Text = 'Running ' + $(if ($Demo) { 'sample assessment' } else { 'local assessment' }) + '...' + [Environment]::NewLine + 'Output: ' + $script:activeOutput
         Set-WskRunningState $true
         $timer.Start()
@@ -166,6 +198,61 @@ function Start-WskAssessment {
         if ($null -ne $script:scanProcess) { $script:scanProcess.Dispose(); $script:scanProcess = $null }
         $statusLabel.Text = 'Unable to start the assessment.'
         $logBox.AppendText([Environment]::NewLine + $_.Exception.Message)
+        Set-WskRunningState $false
+    }
+}
+function Complete-WskAssessment {
+    param([int]$ExitCode, [string]$ConsoleOutput, [string]$ConsoleError)
+    $script:lastHtmlPath = $null
+    $logBox.AppendText([Environment]::NewLine + $ConsoleOutput)
+    if ($ConsoleError) { $logBox.AppendText([Environment]::NewLine + $ConsoleError) }
+    $statusLabel.Text = "Assessment could not complete (exit $ExitCode). Read the process output below."
+    try {
+        if ($ConsoleError -match 'AuthorizationManager|UnauthorizedAccess|PSSecurityException|running scripts is disabled|not digitally signed') {
+            $statusLabel.Text = 'PowerShell reported an authorization error. Review the original error and policy details below.'
+            $logBox.AppendText([Environment]::NewLine + 'Startup guide: ' + (Join-Path $script:kitRoot 'Docs\STARTUP.md'))
+            try {
+                $logBox.AppendText([Environment]::NewLine + 'PowerShell execution policy in this launcher: ' + (Get-ExecutionPolicy))
+                foreach ($entry in Get-ExecutionPolicy -List) {
+                    $logBox.AppendText([Environment]::NewLine + "  $($entry.Scope): $($entry.ExecutionPolicy)")
+                }
+                foreach ($relative in @('Invoke-WintelSecurityAssessment.ps1', 'Modules\Assessment.psm1', 'Modules\Reporting.psm1', 'Modules\Collectors.psm1')) {
+                    $path = Join-Path $script:kitRoot $relative
+                    if ([IO.File]::Exists($path)) {
+                        $signature = Get-AuthenticodeSignature -LiteralPath $path
+                        $zone = Get-Item -LiteralPath $path -Stream Zone.Identifier -ErrorAction SilentlyContinue
+                        $logBox.AppendText([Environment]::NewLine + "  $relative | Signature: $($signature.Status) | Zone.Identifier present: $($null -ne $zone)")
+                    }
+                }
+            } catch { $logBox.AppendText([Environment]::NewLine + 'Policy diagnostics unavailable: ' + $_.Exception.Message) }
+            return
+        }
+        if ($ExitCode -notin @(0, 1, 3)) { return }
+        # A PowerShell startup or script-policy failure may also exit 1. Only the
+        # successful exporter writes this final marker after writing all reports.
+        $markers = [regex]::Matches($ConsoleOutput, '(?m)^WSK_REPORT_DIR=([0-9]{8}T[0-9]{6}Z-[A-Za-z0-9._-]+-([a-f0-9]{8}))\r?$')
+        if ($markers.Count -ne 1) {
+            throw 'No unique report completion marker was received. If PowerShell blocked the scripts, check the execution policy and application control settings with your administrator.'
+        }
+        $runDirectory = Join-Path $script:activeOutput $markers[0].Groups[1].Value
+        foreach ($extension in @('html', 'json', 'csv')) {
+            $file = Get-Item -LiteralPath (Join-Path $runDirectory ('SecurityAssessment.' + $extension)) -ErrorAction Stop
+            if ($file.PSIsContainer -or $file.Length -eq 0) { throw "The $extension report is incomplete." }
+        }
+        $report = Get-Content -LiteralPath (Join-Path $runDirectory 'SecurityAssessment.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        $reportStarted = [DateTimeOffset]::Parse($report.StartedAtUtc, [Globalization.CultureInfo]::InvariantCulture).UtcDateTime
+        if ($reportStarted -lt $script:startedAt -or -not ([string]$report.RunId).StartsWith($markers[0].Groups[2].Value)) {
+            throw 'The report belongs to another assessment. Check the run directory in the process output.'
+        }
+        $statusLabel.Text = switch ($ExitCode) {
+            0 { 'Assessment complete. No failed or incomplete checks.' }
+            1 { 'Assessment complete. Failed controls require attention.' }
+            3 { 'Assessment complete. Review outstanding evidence or approved exceptions.' }
+        }
+        $script:lastHtmlPath = Join-Path $runDirectory 'SecurityAssessment.html'
+    } catch {
+        $logBox.AppendText([Environment]::NewLine + $_.Exception.Message)
+    } finally {
         Set-WskRunningState $false
     }
 }
@@ -177,24 +264,8 @@ $timer.Add_Tick({
         if (-not $script:scanProcess.HasExited -or -not $script:stdoutTask.IsCompleted -or -not $script:stderrTask.IsCompleted) { return }
         $timer.Stop()
         $exitCode = $script:scanProcess.ExitCode
-        $logBox.AppendText([Environment]::NewLine + $script:stdoutTask.Result)
-        if (-not [string]::IsNullOrWhiteSpace($script:stderrTask.Result)) { $logBox.AppendText([Environment]::NewLine + $script:stderrTask.Result) }
         $script:scanProcess.Dispose(); $script:scanProcess = $null
-        # Use the child's own run directory, including when simultaneous scans share an output parent.
-        $runMarkers = [regex]::Matches($script:stdoutTask.Result, '(?m)^WSK_REPORT_DIR=([0-9]{8}T[0-9]{6}Z-[A-Za-z0-9._-]+-[a-f0-9]{8})\r?$')
-        if ($exitCode -in @(0,1,3) -and $runMarkers.Count -gt 0) {
-            $runDirectory = Join-Path $script:activeOutput $runMarkers[$runMarkers.Count - 1].Groups[1].Value
-            $reportPath = Join-Path $runDirectory 'SecurityAssessment.html'
-            if ([IO.File]::Exists($reportPath)) { $script:lastHtmlPath = $reportPath }
-        }
-        $statusLabel.Text = switch ($exitCode) {
-            0 { 'Assessment complete. No failed or incomplete checks.' }
-            1 { 'Assessment complete. Failed controls require attention.' }
-            2 { 'Assessment could not complete. Review the error details below.' }
-            3 { 'Assessment complete. Review outstanding evidence or approved exceptions.' }
-            default { "Assessment exited with code $exitCode. Review the details below." }
-        }
-        Set-WskRunningState $false
+        Complete-WskAssessment -ExitCode $exitCode -ConsoleOutput $script:stdoutTask.Result -ConsoleError $script:stderrTask.Result
     } catch {
         $timer.Stop()
         $statusLabel.Text = 'Unable to finish displaying the assessment result.'
@@ -204,7 +275,7 @@ $timer.Add_Tick({
     }
 })
 $runButton.Add_Click({ Start-WskAssessment -Demo $false })
-$sampleButton.Add_Click({ Start-WskAssessment -Demo $true })
+$sampleButton.Add_Click({ Show-WskBundledSample })
 $openButton.Add_Click({
     try {
         if (-not [string]::IsNullOrWhiteSpace($script:lastHtmlPath) -and (Test-Path -LiteralPath $script:lastHtmlPath -PathType Leaf)) {

@@ -11,7 +11,7 @@ $releaseFiles = @(
     'README.md','Build-Kit.ps1','Launch-GUI.cmd','Start-WintelSecurityGui.ps1','Invoke-WintelSecurityAssessment.ps1',
     'Modules\Assessment.psm1','Modules\Collectors.psm1','Modules\Reporting.psm1',
     'Baselines\windows-server-foundation.v1.json','Baselines\microsoft-windows-server-subset.v1.json',
-    'Docs\BASELINE-FORMAT.md','Docs\SOURCES.md','Docs\MICROSOFT-SUBSET.md','Docs\PILOT-ACCEPTANCE.md',
+    'Docs\BASELINE-FORMAT.md','Docs\SOURCES.md','Docs\MICROSOFT-SUBSET.md','Docs\PILOT-ACCEPTANCE.md','Docs\STARTUP.md',
     'Samples\exceptions.example.json','Samples\Demo\SecurityAssessment.html','Samples\Demo\SecurityAssessment.json','Samples\Demo\SecurityAssessment.csv',
     'Samples\Demo\README.md','Samples\Demo\CONSOLE.txt','Samples\Demo\Report-preview.png',
     'Tests\Test-Kit.ps1','Tests\Test-Collectors.ps1','Tests\Test-Gui.ps1'
@@ -30,7 +30,7 @@ $manifestPath = Join-Path $kitRoot 'SHA256SUMS.txt'
 $files += Get-Item -LiteralPath $manifestPath
 $dist = Join-Path $kitRoot 'Dist'
 $null = New-Item -ItemType Directory -Path $dist -Force
-$zipPath = Join-Path $dist 'WintelSecurityKit-0.1.0.zip'
+$zipPath = Join-Path $dist 'WintelSecurityKit-0.1.1.zip'
 Add-Type -AssemblyName System.IO.Compression
 $stream = [IO.File]::Open($zipPath,[IO.FileMode]::Create,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
 $archive = $null
