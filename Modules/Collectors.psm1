@@ -10,12 +10,26 @@ function Get-WskContext {
     <# Only reads inventory. Windows client builds can match server builds, so ProductType is mandatory. #>
     [CmdletBinding()]
     param()
-    $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
-    $computer = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop
+    try {
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -Property ProductType,BuildNumber,Version,Caption,CSName -ErrorAction Stop
+    }
+    catch {
+        throw "Cannot identify the local OS. Run 'Get-CimInstance Win32_OperatingSystem -Property ProductType,BuildNumber' in this account's 64-bit Windows PowerShell session and check local WMI access. Windows reported: $($_.Exception.Message)"
+    }
+    if ($null -eq $os -or [string]::IsNullOrWhiteSpace([string]$os.CSName)) {
+        throw 'Local OS inventory returned no computer name. Check Win32_OperatingSystem.CSName in the same PowerShell session.'
+    }
     switch ([string]$os.ProductType) {
         '1' { $role = 'Workstation' }
         '2' { $role = 'DomainController' }
         '3' {
+            try {
+                $computer = Get-CimInstance -ClassName Win32_ComputerSystem -Property PartOfDomain -ErrorAction Stop
+            }
+            catch {
+                throw "Cannot determine whether this server belongs to a domain. Run 'Get-CimInstance Win32_ComputerSystem -Property PartOfDomain' in the same PowerShell session and check local WMI access. Windows reported: $($_.Exception.Message)"
+            }
+            if ($null -eq $computer) { throw 'Win32_ComputerSystem returned no inventory for determining domain membership.' }
             if ($computer.PartOfDomain -isnot [bool]) { throw 'Unable to determine domain membership from Win32_ComputerSystem.PartOfDomain.' }
             if ($computer.PartOfDomain) { $role = 'MemberServer' } else { $role = 'StandaloneServer' }
         }
@@ -36,7 +50,7 @@ function Get-WskContext {
     }
     finally { $identity.Dispose() }
     [pscustomobject]@{
-        ComputerName = [string]$computer.Name
+        ComputerName = [string]$os.CSName
         OSCaption = [string]$os.Caption
         OSVersion = [string]$os.Version
         BuildNumber = [string]$os.BuildNumber

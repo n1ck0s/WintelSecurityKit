@@ -189,7 +189,7 @@ function Invoke-WskEvaluation {
     if ($summary.Evaluated -gt 0) { $summary.PassRatePercent = [math]::Round(100.0 * $summary.UnderlyingPass / $summary.Evaluated,1) }
     if ($summary.AutomatedApplicable -gt 0) { $summary.CoveragePercent = [math]::Round(100.0 * $summary.Evaluated / $summary.AutomatedApplicable,1) }
     return [pscustomobject][ordered]@{
-        SchemaVersion='1.0'; KitVersion='0.1.0'; RunId=[guid]::NewGuid().ToString('N'); StartedAtUtc=$StartedAtUtc; CompletedAtUtc=[datetime]::UtcNow.ToString('o')
+        SchemaVersion='1.0'; KitVersion='0.1.1'; RunId=[guid]::NewGuid().ToString('N'); StartedAtUtc=$StartedAtUtc; CompletedAtUtc=[datetime]::UtcNow.ToString('o')
         Mode=$Mode; ClientName=$ClientName; Context=$Context
         Baseline=[pscustomobject]@{Id=$Baseline.Id;Name=$Baseline.Name;Version=$Baseline.Version;Framework=$Baseline.Framework;Description=$Baseline.Description;SourceUrls=$Baseline.SourceUrls}
         Summary=[pscustomobject]$summary; Results=$results.ToArray(); Warnings=$warnings.ToArray()
