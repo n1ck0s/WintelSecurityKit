@@ -1,0 +1,244 @@
+{
+  "SchemaVersion": "1.0",
+  "Id": "microsoft-windows-server-subset",
+  "Name": "Microsoft Azure compute security baseline (five-setting subset)",
+  "Version": "1.0.0",
+  "Framework": "Microsoft Azure compute security baseline for Windows Server, selected registry settings",
+  "Description": "Local comparison against five published registry settings. Each release-specific rule links to its matching Microsoft reference. The Server 2019/2022 table was updated 2023-03-01 and the Server 2025 table on 2025-11-07. Missing evidence requires review. This profile measures only the selected values and produces local results.",
+  "SourceUrls": [
+    "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows",
+    "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows-server-2025"
+  ],
+  "Controls": [
+    {
+      "Id": "MS-AZ-A01",
+      "Title": "UAC administrator approval policy",
+      "Category": "Privilege protection",
+      "Severity": "Critical",
+      "Assessment": "Automated",
+      "Roles": [
+        "MemberServer",
+        "DomainController",
+        "StandaloneServer"
+      ],
+      "Releases": [
+        "2019",
+        "2022"
+      ],
+      "Fact": "Registry|SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System|EnableLUA",
+      "Operator": "Equals",
+      "Expected": 1,
+      "ExpectedDisplay": "1 (enabled)",
+      "Rationale": "Approval mode governs elevation for administrator sessions.",
+      "Remediation": "Review the applied UAC policy and complete the required restart after an approved change.",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows"
+    },
+    {
+      "Id": "MS-AZ-A02",
+      "Title": "Interactive session inactivity limit",
+      "Category": "Interactive access",
+      "Severity": "High",
+      "Assessment": "Automated",
+      "Roles": [
+        "MemberServer",
+        "DomainController",
+        "StandaloneServer"
+      ],
+      "Releases": [
+        "2019",
+        "2022"
+      ],
+      "Fact": "Registry|SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System|InactivityTimeoutSecs",
+      "Operator": "Between",
+      "Expected": [
+        1,
+        900
+      ],
+      "ExpectedDisplay": "1 to 900 seconds, inclusive",
+      "Rationale": "The published interval bounds unattended session time.",
+      "Remediation": "Set the machine inactivity interval within the published range and validate session locking.",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows"
+    },
+    {
+      "Id": "MS-AZ-A03",
+      "Title": "SMB client signing requirement",
+      "Category": "SMB",
+      "Severity": "Critical",
+      "Assessment": "Automated",
+      "Roles": [
+        "MemberServer",
+        "DomainController",
+        "StandaloneServer"
+      ],
+      "Releases": [
+        "2019",
+        "2022"
+      ],
+      "Fact": "Registry|SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters|RequireSecuritySignature",
+      "Operator": "Equals",
+      "Expected": 1,
+      "ExpectedDisplay": "1 (enabled)",
+      "Rationale": "Outgoing SMB connections require integrity protection.",
+      "Remediation": "Check client policy and target compatibility before enforcing SMB signing.",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows"
+    },
+    {
+      "Id": "MS-AZ-A04",
+      "Title": "SMB server signing requirement",
+      "Category": "SMB",
+      "Severity": "Critical",
+      "Assessment": "Automated",
+      "Roles": [
+        "MemberServer",
+        "DomainController",
+        "StandaloneServer"
+      ],
+      "Releases": [
+        "2019",
+        "2022"
+      ],
+      "Fact": "Registry|SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters|RequireSecuritySignature",
+      "Operator": "Equals",
+      "Expected": 1,
+      "ExpectedDisplay": "1 (enabled)",
+      "Rationale": "Incoming SMB connections require integrity protection.",
+      "Remediation": "Check server policy and client compatibility before enforcing SMB signing.",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows"
+    },
+    {
+      "Id": "MS-AZ-A05",
+      "Title": "Domain firewall profile policy",
+      "Category": "Network protection",
+      "Severity": "Critical",
+      "Assessment": "Automated",
+      "Roles": [
+        "MemberServer",
+        "DomainController",
+        "StandaloneServer"
+      ],
+      "Releases": [
+        "2019",
+        "2022"
+      ],
+      "Fact": "Registry|SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile|EnableFirewall",
+      "Operator": "Equals",
+      "Expected": 1,
+      "ExpectedDisplay": "1 (enabled)",
+      "Rationale": "The explicit policy enables the domain firewall profile.",
+      "Remediation": "Review the policy governing this profile and verify the resulting firewall state.",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows"
+    },
+    {
+      "Id": "MS-AZ-B01",
+      "Title": "UAC administrator approval policy",
+      "Category": "Privilege protection",
+      "Severity": "Critical",
+      "Assessment": "Automated",
+      "Roles": [
+        "MemberServer",
+        "DomainController",
+        "StandaloneServer"
+      ],
+      "Releases": [
+        "2025"
+      ],
+      "Fact": "Registry|SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System|EnableLUA",
+      "Operator": "Equals",
+      "Expected": 1,
+      "ExpectedDisplay": "1 (enabled)",
+      "Rationale": "Approval mode governs elevation for administrator sessions.",
+      "Remediation": "Review the applied UAC policy and complete the required restart after an approved change.",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows-server-2025"
+    },
+    {
+      "Id": "MS-AZ-B02",
+      "Title": "Interactive session inactivity limit",
+      "Category": "Interactive access",
+      "Severity": "High",
+      "Assessment": "Automated",
+      "Roles": [
+        "MemberServer",
+        "DomainController",
+        "StandaloneServer"
+      ],
+      "Releases": [
+        "2025"
+      ],
+      "Fact": "Registry|SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System|InactivityTimeoutSecs",
+      "Operator": "Between",
+      "Expected": [
+        1,
+        900
+      ],
+      "ExpectedDisplay": "1 to 900 seconds, inclusive",
+      "Rationale": "The published interval bounds unattended session time.",
+      "Remediation": "Set the machine inactivity interval within the published range and validate session locking.",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows-server-2025"
+    },
+    {
+      "Id": "MS-AZ-B03",
+      "Title": "SMB client signing requirement",
+      "Category": "SMB",
+      "Severity": "Critical",
+      "Assessment": "Automated",
+      "Roles": [
+        "MemberServer",
+        "DomainController",
+        "StandaloneServer"
+      ],
+      "Releases": [
+        "2025"
+      ],
+      "Fact": "Registry|SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters|RequireSecuritySignature",
+      "Operator": "Equals",
+      "Expected": 1,
+      "ExpectedDisplay": "1 (enabled)",
+      "Rationale": "Outgoing SMB connections require integrity protection.",
+      "Remediation": "Check client policy and target compatibility before enforcing SMB signing.",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows-server-2025"
+    },
+    {
+      "Id": "MS-AZ-B04",
+      "Title": "SMB server signing requirement",
+      "Category": "SMB",
+      "Severity": "Critical",
+      "Assessment": "Automated",
+      "Roles": [
+        "MemberServer",
+        "DomainController",
+        "StandaloneServer"
+      ],
+      "Releases": [
+        "2025"
+      ],
+      "Fact": "Registry|SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters|RequireSecuritySignature",
+      "Operator": "Equals",
+      "Expected": 1,
+      "ExpectedDisplay": "1 (enabled)",
+      "Rationale": "Incoming SMB connections require integrity protection.",
+      "Remediation": "Check server policy and client compatibility before enforcing SMB signing.",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows-server-2025"
+    },
+    {
+      "Id": "MS-AZ-B05",
+      "Title": "Domain firewall profile policy",
+      "Category": "Network protection",
+      "Severity": "Critical",
+      "Assessment": "Automated",
+      "Roles": [
+        "MemberServer",
+        "DomainController"
+      ],
+      "Releases": [
+        "2025"
+      ],
+      "Fact": "Registry|SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile|EnableFirewall",
+      "Operator": "Equals",
+      "Expected": 1,
+      "ExpectedDisplay": "1 (enabled)",
+      "Rationale": "The explicit policy enables the domain firewall profile.",
+      "Remediation": "Review the policy governing this profile and verify the resulting firewall state.",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows-server-2025"
+    }
+  ]
+}
