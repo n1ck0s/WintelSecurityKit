@@ -1,6 +1,6 @@
 # Pilot acceptance
 
-Release 0.1.0 is ready for a controlled pilot, not a claim of production certification.
+Release 0.1.1 is ready for a controlled pilot, not a claim of production certification.
 
 | Pilot target | Validate |
 | --- | --- |
@@ -8,7 +8,7 @@ Release 0.1.0 is ready for a controlled pilot, not a claim of production certifi
 | Each domain-controller release | DC role detection; local-account controls not applicable; domain/LDAP manual evidence retained |
 | Standalone server | Role identification and local-account scope |
 | Server Core | CLI operation and usable exported report |
-| Desktop Experience | GUI responsiveness, error handling, sample run and report opening |
+| Desktop Experience | GUI responsiveness, error handling, bundled sample loading, fresh report generation and report opening |
 | Defender active / approved third-party EDR | Accurate Defender-specific results, manual EDR evidence and approved exceptions |
 | BitLocker absent / suspended / encrypting / fully encrypted | Missing, false and true states remain distinct; no recovery material in output |
 | Restricted permissions / absent optional components | No false pass; Review/Error and clear evidence |
