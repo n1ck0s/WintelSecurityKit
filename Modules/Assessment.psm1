@@ -134,7 +134,8 @@ function Invoke-WskEvaluation {
     [CmdletBinding()]
     param([Parameter(Mandatory)]$Baseline,[Parameter(Mandatory)]$Context,[Parameter(Mandatory)][System.Collections.IDictionary]$Facts,
         [object[]]$Exceptions = @(), [string]$ClientName = '', [ValidateSet('Live','Demo')][string]$Mode = 'Live',
-        [string]$StartedAtUtc = ([datetime]::UtcNow.ToString('o')), [datetime]$AsOfUtc = [datetime]::UtcNow)
+        [string]$StartedAtUtc = ([datetime]::UtcNow.ToString('o')), [datetime]$AsOfUtc = [datetime]::UtcNow,
+        [guid]$RunId = [guid]::NewGuid())
     $warnings = New-Object 'System.Collections.Generic.List[string]'
     if ($Mode -eq 'Demo') { $warnings.Add('SYNTHETIC DEMONSTRATION: no server was assessed. All evidence is fabricated for preview and testing.') }
     if (-not $Context.IsAdministrator -and $Mode -eq 'Live') { $warnings.Add('The process is not elevated. Some evidence may be unavailable. Rerun in an approved elevated session for fuller collection.') }
@@ -189,7 +190,7 @@ function Invoke-WskEvaluation {
     if ($summary.Evaluated -gt 0) { $summary.PassRatePercent = [math]::Round(100.0 * $summary.UnderlyingPass / $summary.Evaluated,1) }
     if ($summary.AutomatedApplicable -gt 0) { $summary.CoveragePercent = [math]::Round(100.0 * $summary.Evaluated / $summary.AutomatedApplicable,1) }
     return [pscustomobject][ordered]@{
-        SchemaVersion='1.0'; KitVersion='0.1.1'; RunId=[guid]::NewGuid().ToString('N'); StartedAtUtc=$StartedAtUtc; CompletedAtUtc=[datetime]::UtcNow.ToString('o')
+        SchemaVersion='1.0'; KitVersion='0.1.2'; RunId=$RunId.ToString('N'); StartedAtUtc=$StartedAtUtc; CompletedAtUtc=[datetime]::UtcNow.ToString('o')
         Mode=$Mode; ClientName=$ClientName; Context=$Context
         Baseline=[pscustomobject]@{Id=$Baseline.Id;Name=$Baseline.Name;Version=$Baseline.Version;Framework=$Baseline.Framework;Description=$Baseline.Description;SourceUrls=$Baseline.SourceUrls}
         Summary=[pscustomobject]$summary; Results=$results.ToArray(); Warnings=$warnings.ToArray()
