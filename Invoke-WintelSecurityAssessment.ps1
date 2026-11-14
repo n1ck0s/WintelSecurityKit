@@ -6,6 +6,8 @@ Runs an offline-capable, read-only local Windows Server posture assessment.
 Use -Demo to render synthetic results without querying this host. Live scans require
 64-bit Windows PowerShell 5.1 on Server 2019, 2022 or 2025. Output contains server
 configuration evidence: store and share it under your client data handling rules.
+.PARAMETER RunId
+Optional unique identifier supplied by a launcher to correlate a run with its JSON report.
 .EXAMPLE
 .\Invoke-WintelSecurityAssessment.ps1 -ClientName 'Example client'
 .EXAMPLE
@@ -19,7 +21,8 @@ param(
     [string]$ClientName = '',
     [switch]$Demo,
     [ValidateSet('MemberServer','DomainController','StandaloneServer')][string]$DemoRole = 'MemberServer',
-    [ValidateSet('2019','2022','2025')][string]$DemoRelease = '2022'
+    [ValidateSet('2019','2022','2025')][string]$DemoRelease = '2022',
+    [guid]$RunId = [guid]::NewGuid()
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -57,7 +60,7 @@ try {
         $mode = 'Live'
     }
     $stage = 'evaluating the baseline'
-    $report = Invoke-WskEvaluation -Baseline $baseline -Context $context -Facts $facts -Exceptions $exceptions -ClientName $ClientName -Mode $mode -StartedAtUtc $started
+    $report = Invoke-WskEvaluation -Baseline $baseline -Context $context -Facts $facts -Exceptions $exceptions -ClientName $ClientName -Mode $mode -StartedAtUtc $started -RunId $RunId
     $hostLabel = $context.ComputerName -replace '[^A-Za-z0-9._-]','_'
     $runFolder = '{0}-{1}-{2}' -f ([datetime]::UtcNow.ToString('yyyyMMddTHHmmssZ')),$hostLabel,$report.RunId.Substring(0,8)
     # Resolve a relative path against the caller's PowerShell location. The .NET
@@ -65,6 +68,10 @@ try {
     $stage = "writing reports under '$OutputDirectory'"
     $outputRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)
     $target = Join-Path $outputRoot $runFolder
+    # Reserve this run before writing. A repeated correlation ID or matching short
+    # suffix within the same second must never overwrite an earlier assessment.
+    $null = [IO.Directory]::CreateDirectory($outputRoot)
+    $null = New-Item -Path $target -ItemType Directory -ErrorAction Stop
     $paths = Export-WskReport -Report $report -OutputDirectory $target
     Write-Host "Mode: $mode | Baseline: $($baseline.Name) $($baseline.Version)"
     Write-Host "Pass: $($report.Summary.Pass) | Fail: $($report.Summary.Fail) | Review: $($report.Summary.Review) | Error: $($report.Summary.Error) | Excepted: $($report.Summary.Excepted)"

@@ -30,7 +30,7 @@ $manifestPath = Join-Path $kitRoot 'SHA256SUMS.txt'
 $files += Get-Item -LiteralPath $manifestPath
 $dist = Join-Path $kitRoot 'Dist'
 $null = New-Item -ItemType Directory -Path $dist -Force
-$zipPath = Join-Path $dist 'WintelSecurityKit-0.1.1.zip'
+$zipPath = Join-Path $dist 'WintelSecurityKit-0.1.2.zip'
 Add-Type -AssemblyName System.IO.Compression
 $stream = [IO.File]::Open($zipPath,[IO.FileMode]::Create,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
 $archive = $null
