@@ -15,19 +15,32 @@ try {
     if ($script:lastHtmlPath -ne (Join-Path $script:kitRoot 'Samples\Demo\SecurityAssessment.html') -or $logBox.Text -notmatch 'Fail: \d+') {
         throw 'Sample preview did not display the bundled report and labelled counts.'
     }
-    Complete-WskAssessment -ExitCode 1 -ConsoleOutput '' -ConsoleError 'AuthorizationManager check failed. FullyQualifiedErrorId : UnauthorizedAccess'
-    if ($openButton.Enabled -or $script:lastHtmlPath -or $statusLabel.Text -notlike '*authorization error*' -or
-        $logBox.Text -notlike '*FullyQualifiedErrorId : UnauthorizedAccess*' -or $logBox.Text -notlike '*Docs\STARTUP.md*') {
-        throw 'A blocked PowerShell child was classified as an assessment or raw error details were lost.'
+    $script:runId = [guid]::NewGuid()
+    $script:activeOutput = Join-Path $testDirectory 'Output'
+    Complete-WskAssessment -ExitCode 1
+    if ($openButton.Enabled -or $script:lastHtmlPath -or $statusLabel.Text -notlike 'Assessment could not complete*' -or
+        $logBox.Text -notlike '*Invoke-WintelSecurityAssessment.ps1*' -or $logBox.Text -notlike '*Docs\STARTUP.md*') {
+        throw 'A blocked PowerShell console must display CLI reproduction and startup diagnostics.'
     }
-    Complete-WskAssessment -ExitCode 1 -ConsoleOutput 'PowerShell startup failure' -ConsoleError 'Unspecific load failure'
-    if ($openButton.Enabled -or $statusLabel.Text -notlike 'Assessment could not complete*' -or $logBox.Text -notlike '*No unique report completion marker*') {
-        throw 'A child exit code of 1 without the assessment marker must not be classified as findings.'
+    # Inspect the actual launcher's native interactive configuration without
+    # spawning a live collection or presenting a console during this test.
+    function Start-WskConsoleProcess {
+        param([Diagnostics.ProcessStartInfo]$StartInfo)
+        if (-not $StartInfo.UseShellExecute -or $StartInfo.WindowStyle -ne 'Normal' -or $StartInfo.CreateNoWindow -or
+            $StartInfo.RedirectStandardInput -or $StartInfo.RedirectStandardOutput -or $StartInfo.RedirectStandardError -or
+            $StartInfo.Arguments -match '-NonInteractive|-ExecutionPolicy|-EncodedCommand|-Command' -or
+            $StartInfo.Arguments -notmatch '"-File"' -or $StartInfo.Arguments -notmatch '"-RunId"') {
+            throw 'Native interactive console contract was violated.'
+        }
+        $StartInfo.UseShellExecute = $false
+        $StartInfo.CreateNoWindow = $true
+        $StartInfo.Arguments += ' "-Demo"'
+        return [Diagnostics.Process]::Start($StartInfo)
     }
     $clientValue = 'Example "client" ' + [char]0x03A9 + '\'
     $clientField.Text = $clientValue
     $outputField.Text = Join-Path $testDirectory ('Output\GUI smoke ' + [guid]::NewGuid().ToString('N').Substring(0,8))
-    Start-WskAssessment -Demo $true
+    Start-WskAssessment
     if ($null -eq $script:scanProcess -or $runButton.Enabled) { throw ('Unable to start demo: ' + $logBox.Text) }
     $deadline = [DateTime]::UtcNow.AddSeconds(30)
     while ($null -ne $script:scanProcess -and [DateTime]::UtcNow -lt $deadline) {
@@ -45,11 +58,16 @@ try {
         throw 'Synthetic report content or quoted Unicode client argument did not round-trip.'
     }
     if ($result.Summary.Fail -lt 1 -or $statusLabel.Text -notlike 'Assessment complete. Failed controls*') { throw 'A completed sample with failures was classified incorrectly.' }
-    $completedMarker = 'WSK_REPORT_DIR=' + (Split-Path (Split-Path $script:lastHtmlPath -Parent) -Leaf)
+    if ($result.RunId -cne $script:runId.ToString('N')) { throw 'The full caller-generated run ID did not round-trip.' }
     $script:startedAt = [DateTime]::UtcNow
-    Complete-WskAssessment -ExitCode 1 -ConsoleOutput $completedMarker -ConsoleError ''
-    if ($openButton.Enabled -or $script:lastHtmlPath -or $logBox.Text -notlike '*another assessment*') { throw 'An old run was accepted as the current report.' }
-    Write-Host 'PASS: packaged sample preview without a child process, blocked PowerShell diagnostics, missing marker, completed synthetic assessment, stale report rejection and quoted Unicode arguments.'
+    Complete-WskAssessment -ExitCode 1
+    if ($openButton.Enabled -or $script:lastHtmlPath -or $logBox.Text -notlike '*predates this assessment*') { throw 'An old run was accepted as the current report.' }
+    $collision = $script:runId.ToString('N').Substring(0,8) + [guid]::NewGuid().ToString('N').Substring(8)
+    $script:runId = [guid]::ParseExact($collision, 'N')
+    $logBox.Clear()
+    Complete-WskAssessment -ExitCode 1
+    if ($openButton.Enabled -or $script:lastHtmlPath -or $logBox.Text -notlike '*No unique completed report*') { throw 'Report with a matching prefix but different full run ID was accepted.' }
+    Write-Host 'PASS: interactive console configuration, packaged sample, CLI reproduction, synthetic results, full run ID matching, stale report rejection and quoted Unicode arguments.'
 } finally {
     $timer.Stop()
     $timer.Dispose()

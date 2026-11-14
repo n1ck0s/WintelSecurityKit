@@ -65,6 +65,11 @@ Test-Case 'Distinct statuses and score denominators' {
     Assert-True ($r.Summary.Pass -eq 1 -and $r.Summary.Fail -eq 1 -and $r.Summary.Review -eq 2 -and $r.Summary.Error -eq 1 -and $r.Summary.NotApplicable -eq 1)
     Assert-True ($r.Summary.PassRatePercent -eq 50 -and $r.Summary.CoveragePercent -eq 50 -and $r.Summary.AutomatedApplicable -eq 4)
 }
+Test-Case 'Launcher GUID is preserved as the JSON correlation ID' {
+    $requestedId=[guid]::NewGuid()
+    $r=Invoke-WskEvaluation $baseline $context $facts -Mode Demo -RunId $requestedId
+    Assert-True ($r.RunId -ceq $requestedId.ToString('N'))
+}
 Test-Case 'No evidence never produces a perfect score' {
     $r=Invoke-WskEvaluation $baseline $context @{} -Mode Demo
     Assert-True ($null -eq $r.Summary.PassRatePercent -and $r.Summary.CoveragePercent -eq 0 -and $r.Summary.Pass -eq 0)
