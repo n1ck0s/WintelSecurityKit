@@ -32,7 +32,7 @@ The CLI returned **exit code 1** because it found six unexcepted failures. It wr
 
 ## Reproduce the example
 
-In the GUI, choose **Run sample** with the baseline field blank. From the extracted kit directory, the equivalent PowerShell command for the shipped example is:
+In the GUI, choose **Load sample**, then **Open HTML report** to view these existing files. The shipped example was generated with kit 0.1.0. To generate a fresh example with the current kit, run this command from the extracted directory:
 
 ```powershell
 .\Invoke-WintelSecurityAssessment.ps1 -Demo -DemoRelease 2022 -DemoRole MemberServer -ClientName 'Example Managed Services Client' -OutputDirectory .\Reports
