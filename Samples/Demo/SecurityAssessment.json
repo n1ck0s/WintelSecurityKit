@@ -1,9 +1,9 @@
 {
     "SchemaVersion":  "1.0",
     "KitVersion":  "0.1.0",
-    "RunId":  "d1e94f941ca442738ca492bc67b7ff18",
-    "StartedAtUtc":  "2026-11-14T02:15:20.3713076Z",
-    "CompletedAtUtc":  "2026-11-14T02:15:21.0217447Z",
+    "RunId":  "90ee7fd768b94caebe671e78cf4fb3f6",
+    "StartedAtUtc":  "2026-11-14T02:54:24.0674528Z",
+    "CompletedAtUtc":  "2026-11-14T02:54:25.0183028Z",
     "Mode":  "Demo",
     "ClientName":  "Example Managed Services Client",
     "Context":  {
@@ -14,7 +14,7 @@
                     "ServerRelease":  "2022",
                     "Role":  "MemberServer",
                     "IsAdministrator":  false,
-                    "CollectedAtUtc":  "2026-11-14T02:15:20.8156240Z",
+                    "CollectedAtUtc":  "2026-11-14T02:54:24.7419458Z",
                     "Supported":  true,
                     "Is64Bit":  true
                 },

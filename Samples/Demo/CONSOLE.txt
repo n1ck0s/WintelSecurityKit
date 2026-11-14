@@ -1,0 +1,13 @@
+Synthetic Windows Server 2022 member server | Windows Server Foundation Posture
+The report directory prefix below is shown as .\Reports for portability.
+
+PS> .\Invoke-WintelSecurityAssessment.ps1 -Demo -DemoRelease 2022 -DemoRole MemberServer -ClientName 'Example Managed Services Client' -OutputDirectory .\Reports
+Mode: Demo | Baseline: Windows Server Foundation Posture 1.0.0
+Pass: 20 | Fail: 6 | Review: 11 | Error: 2 | Excepted: 0
+HTML: .\Reports\20261114T025425Z-WSK-DEMO-2022-90ee7fd7\SecurityAssessment.html
+JSON: .\Reports\20261114T025425Z-WSK-DEMO-2022-90ee7fd7\SecurityAssessment.json
+CSV:  .\Reports\20261114T025425Z-WSK-DEMO-2022-90ee7fd7\SecurityAssessment.csv
+WSK_REPORT_DIR=20261114T025425Z-WSK-DEMO-2022-90ee7fd7
+
+PS> $LASTEXITCODE
+1
