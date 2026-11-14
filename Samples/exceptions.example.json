@@ -1,0 +1,15 @@
+{
+  "SchemaVersion": "1.0",
+  "Exceptions": [
+    {
+      "ControlId": "REPLACE-WITH-CONTROL-ID",
+      "ComputerName": "REPLACE-WITH-EXACT-HOST",
+      "BaselineId": "windows-server-foundation",
+      "BaselineVersion": "1.0.0",
+      "Reason": "Replace with approved risk, compensating controls and review rationale.",
+      "Owner": "Replace with accountable approver",
+      "Ticket": "Replace with approved change or risk record",
+      "ExpiresOn": "2026-11-30"
+    }
+  ]
+}
