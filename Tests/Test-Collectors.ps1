@@ -13,23 +13,34 @@ $module = Import-Module (Join-Path $PSScriptRoot '..\Modules\Collectors.psm1') -
         $script:checks++
     }
     function Get-CimInstance {
-        param([string]$ClassName)
+        param([string]$ClassName, [string[]]$Property)
+        if ($ClassName -eq $script:deniedClass) { throw 'Synthetic Access denied' }
         if ($ClassName -eq 'Win32_OperatingSystem') { return $script:mockOs }
         if ($ClassName -eq 'Win32_ComputerSystem') { return $script:mockComputer }
         throw "Unexpected inventory provider $ClassName"
     }
-    $script:mockOs = [pscustomobject]@{ProductType=3;BuildNumber='20348';Version='10.0';Caption='Synthetic server'}
+    $script:deniedClass = ''
+    $script:mockOs = [pscustomobject]@{ProductType=3;BuildNumber='20348';Version='10.0';Caption='Synthetic server';CSName='SYNTHETIC'}
     $script:mockComputer = [pscustomobject]@{Name='SYNTHETIC';PartOfDomain=$true}
     $context = Get-WskContext
     Assert-Collector ($context.Supported -and $context.ServerRelease -eq '2022' -and $context.Role -eq 'MemberServer') 'known member inventory'
     $script:mockComputer.PartOfDomain = $false
     Assert-Collector ((Get-WskContext).Role -eq 'StandaloneServer') 'explicit workgroup membership'
     $script:mockOs.ProductType = 2
-    Assert-Collector ((Get-WskContext).Role -eq 'DomainController') 'DC product type'
+    $script:deniedClass = 'Win32_ComputerSystem'
+    Assert-Collector ((Get-WskContext).Role -eq 'DomainController') 'DC product type suffices without the computer system query'
     $script:mockOs.ProductType = 1
     $script:mockOs.BuildNumber = '26100'
-    Assert-Collector (-not (Get-WskContext).Supported) 'matching Windows client build is unsupported'
+    Assert-Collector (-not (Get-WskContext).Supported) 'client gets an unsupported result without a domain-membership query'
     $script:mockOs.ProductType = 3
+    $rejected = $false
+    try { $null = Get-WskContext } catch { $rejected = $_.Exception.Message -match 'Win32_ComputerSystem' -and $_.Exception.Message -match 'Synthetic Access denied' }
+    Assert-Collector $rejected 'membership inventory failure identifies both provider and Windows error'
+    $script:deniedClass = 'Win32_OperatingSystem'
+    $rejected = $false
+    try { $null = Get-WskContext } catch { $rejected = $_.Exception.Message -match 'Win32_OperatingSystem' -and $_.Exception.Message -match 'Synthetic Access denied' }
+    Assert-Collector $rejected 'OS inventory failure identifies both provider and Windows error'
+    $script:deniedClass = ''
     $script:mockOs.BuildNumber = '99999'
     Assert-Collector (-not (Get-WskContext).Supported) 'unrecognised server build is unsupported'
     $script:mockOs.BuildNumber = '20348'
