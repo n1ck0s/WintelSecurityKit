@@ -172,11 +172,13 @@ function Invoke-WskEvaluation {
             if ($status -eq 'Fail') { $exception = $validExceptions[$control.Id]; $status = 'Excepted' }
             else { $warnings.Add("Exception for '$($control.Id)' was not applied: its result is $status. Only confirmed failures may be excepted.") }
         }
-        $results.Add([pscustomobject][ordered]@{
+        $row = [ordered]@{
             Id=$control.Id; Title=$control.Title; Category=$control.Category; Severity=$control.Severity; Status=$status; UnderlyingStatus=$underlyingStatus
             Expected=$control.ExpectedDisplay; Actual=$actual; Evidence=$evidence; Reason=$reason; Rationale=$control.Rationale; Remediation=$control.Remediation
             SourceUrl=$control.SourceUrl; Fact=$control.Fact; Assessment=$control.Assessment; Exception=$exception
-        })
+        }
+        if ($control.PSObject.Properties['SourceRuleId']) { $row.SourceRuleId = $control.SourceRuleId }
+        $results.Add([pscustomobject]$row)
     }
     $summary = [ordered]@{}
     foreach ($status in @('Pass','Fail','Review','Error','NotApplicable','Excepted')) { $summary[$status] = @($results | Where-Object { $_.Status -eq $status }).Count }
@@ -185,14 +187,23 @@ function Invoke-WskEvaluation {
     $summary.UnderlyingPass = @($results | Where-Object { $_.UnderlyingStatus -eq 'Pass' }).Count
     $summary.UnderlyingFail = @($results | Where-Object { $_.UnderlyingStatus -eq 'Fail' }).Count
     $summary.Evaluated = $summary.UnderlyingPass + $summary.UnderlyingFail
+    if ($Baseline.PSObject.Properties['SourceProfileId']) {
+        $applicable = $summary.Total - $summary.NotApplicable
+        $manual = $applicable - $summary.AutomatedApplicable
+        $warnings.Add("Imported profile $($Baseline.SourceProfileId). Of $applicable applicable recommendations, $($summary.Evaluated) produced a tested result and $manual require manual assessment. Compare unresolved items with the source benchmark.")
+    }
     $summary.PassRatePercent = $null
     $summary.CoveragePercent = $null
     if ($summary.Evaluated -gt 0) { $summary.PassRatePercent = [math]::Round(100.0 * $summary.UnderlyingPass / $summary.Evaluated,1) }
     if ($summary.AutomatedApplicable -gt 0) { $summary.CoveragePercent = [math]::Round(100.0 * $summary.Evaluated / $summary.AutomatedApplicable,1) }
+    $baselineInfo = [ordered]@{Id=$Baseline.Id;Name=$Baseline.Name;Version=$Baseline.Version;Framework=$Baseline.Framework;Description=$Baseline.Description;SourceUrls=$Baseline.SourceUrls}
+    foreach ($key in @('SourceBenchmarkId','SourceBenchmarkVersion','SourceProfileId','SourceSha256','SourceMappingSha256')) {
+        if ($Baseline.PSObject.Properties[$key]) { $baselineInfo[$key] = $Baseline.$key }
+    }
     return [pscustomobject][ordered]@{
-        SchemaVersion='1.0'; KitVersion='0.1.2'; RunId=$RunId.ToString('N'); StartedAtUtc=$StartedAtUtc; CompletedAtUtc=[datetime]::UtcNow.ToString('o')
+        SchemaVersion='1.0'; KitVersion='0.2.0'; RunId=$RunId.ToString('N'); StartedAtUtc=$StartedAtUtc; CompletedAtUtc=[datetime]::UtcNow.ToString('o')
         Mode=$Mode; ClientName=$ClientName; Context=$Context
-        Baseline=[pscustomobject]@{Id=$Baseline.Id;Name=$Baseline.Name;Version=$Baseline.Version;Framework=$Baseline.Framework;Description=$Baseline.Description;SourceUrls=$Baseline.SourceUrls}
+        Baseline=[pscustomobject]$baselineInfo
         Summary=[pscustomobject]$summary; Results=$results.ToArray(); Warnings=$warnings.ToArray()
     }
 }
