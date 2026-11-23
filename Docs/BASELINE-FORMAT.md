@@ -66,4 +66,6 @@ Collectors are cached per source during a scan. Each fact has State (Collected/U
 
 ## Baseline review before release
 
+Locally imported XCCDF profiles also carry the benchmark and profile identifiers, source SHA-256, and the exact rule ID in each control's `SourceRuleId`. Level 1 and Level 2 have distinct kit IDs. Changing the source document or automation mapping generates a new baseline ID so earlier exceptions require review. [CIS import walkthrough](CIS-IMPORT.md)
+
 Record the baseline owner, exact authoritative version, licensing entitlement where applicable, role/release applicability, setting semantics, evidence source and expected-value type. Test known pass/fail/missing states on each applicable release. Compare results with native Windows tools and the authoritative assessment procedure. Revise the baseline version whenever policy interpretation changes, then reapprove any exceptions bound to its previous version.

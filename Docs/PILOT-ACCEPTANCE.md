@@ -1,6 +1,6 @@
 # Pilot acceptance
 
-Use this checklist for the 0.1.2 pilot.
+Use this checklist for the 0.2.0 pilot.
 
 | Pilot target | Validate |
 | --- | --- |
@@ -12,6 +12,7 @@ Use this checklist for the 0.1.2 pilot.
 | Defender active / approved third-party EDR | Accurate Defender-specific results, manual EDR evidence and approved exceptions |
 | BitLocker absent / suspended / encrypting / fully encrypted | Missing, false and true states remain distinct; no recovery material in output |
 | Restricted permissions / absent optional components | No false pass; Review/Error and clear evidence |
+| CIS profiles | Compare both generated sets of source rule IDs against the authorised edition, role and profiles. Independently verify every automated mapping against the benchmark's complete audit procedure on a representative server. |
 
 For every target, independently compare a selection of passes and every unexpected failure with native Windows tools and the approved baseline. Confirm that reading explicit registry policy does not get mistaken for proof of effective enforcement or completed restart.
 
