@@ -1,0 +1,98 @@
+{
+    "SchemaVersion":  "1.0",
+    "Id":  "xccdf-2022-member-server-l2-26d27513cf4eeb31b318",
+    "Name":  "Synthetic Windows Server 2022 Benchmark - Level 2 - Member Server",
+    "Version":  "1.7.3",
+    "Framework":  "Imported XCCDF profile",
+    "Description":  "Source \u0027Synthetic Windows Server 2022 Benchmark\u0027 revision \u00271.7.3\u0027, profile \u0027Level 2 - Member Server\u0027 (xccdf_org.example_profile_L2_Member). Confirm the edition and benchmark-level platform qualification before use. Unmapped recommendations require manual evidence.",
+    "SourceUrls":  [
+                       "https://csrc.nist.gov/projects/security-content-automation-protocol/specifications/xccdf"
+                   ],
+    "SourceBenchmarkId":  "xccdf_org.example_benchmark_windows-server-2022",
+    "SourceBenchmarkTitle":  "Synthetic Windows Server 2022 Benchmark",
+    "SourceBenchmarkVersion":  "1.7.3",
+    "SourceProfileId":  "xccdf_org.example_profile_L2_Member",
+    "SourceProfileTitle":  "Level 2 - Member Server",
+    "SourceSha256":  "715e728616da4f785c15b2974ba860cd9f197a34fe980dba87c84967b252e309",
+    "SourceBenchmarkPlatformIds":  [
+
+                                   ],
+    "SourceMappingSha256":  "e7244c305a24e5f94d370e39bd0031a9cc84eef65c97dd4429d0e41cc2991529",
+    "SourceProfileDirectives":  [
+
+                                ],
+    "Controls":  [
+                     {
+                         "Id":  "xccdf_org.example_rule_record",
+                         "Title":  "Record the workshop handover date",
+                         "Category":  "Benchmark recommendation",
+                         "Severity":  "Low",
+                         "Assessment":  "Manual",
+                         "Roles":  [
+                                       "MemberServer"
+                                   ],
+                         "Releases":  [
+                                          "2022"
+                                      ],
+                         "Fact":  null,
+                         "Operator":  null,
+                         "Expected":  null,
+                         "ExpectedDisplay":  "Check the target in the selected benchmark recommendation.",
+                         "Rationale":  "Source rule xccdf_org.example_rule_record. Use the selected benchmark edition and profile to assess the server.",
+                         "Remediation":  "Assess the source recommendation and record the result and supporting evidence.",
+                         "SourceUrl":  "https://csrc.nist.gov/projects/security-content-automation-protocol/specifications/xccdf",
+                         "SourceRuleId":  "xccdf_org.example_rule_record",
+                         "SourcePlatformIds":  [
+
+                                               ]
+                     },
+                     {
+                         "Id":  "xccdf_org.example_rule_visibility",
+                         "Title":  "Record whether the practice host\u0027s domain firewall profile is enabled",
+                         "Category":  "Benchmark recommendation",
+                         "Severity":  "Medium",
+                         "Assessment":  "Automated",
+                         "Roles":  [
+                                       "MemberServer"
+                                   ],
+                         "Releases":  [
+                                          "2022"
+                                      ],
+                         "Fact":  "Firewall.Domain.Enabled",
+                         "Operator":  "Equals",
+                         "Expected":  true,
+                         "ExpectedDisplay":  "Domain firewall profile enabled",
+                         "Rationale":  "Source rule xccdf_org.example_rule_visibility. Use the selected benchmark edition and profile to assess the server.",
+                         "Remediation":  "Assess the source recommendation and record the result and supporting evidence.",
+                         "SourceUrl":  "https://csrc.nist.gov/projects/security-content-automation-protocol/specifications/xccdf",
+                         "SourceRuleId":  "xccdf_org.example_rule_visibility",
+                         "SourcePlatformIds":  [
+
+                                               ]
+                     },
+                     {
+                         "Id":  "xccdf_org.example_rule_archive",
+                         "Title":  "Archive the practice worksheet",
+                         "Category":  "Benchmark recommendation",
+                         "Severity":  "Low",
+                         "Assessment":  "Manual",
+                         "Roles":  [
+                                       "MemberServer"
+                                   ],
+                         "Releases":  [
+                                          "2022"
+                                      ],
+                         "Fact":  null,
+                         "Operator":  null,
+                         "Expected":  null,
+                         "ExpectedDisplay":  "Check the target in the selected benchmark recommendation.",
+                         "Rationale":  "Source rule xccdf_org.example_rule_archive. Use the selected benchmark edition and profile to assess the server.",
+                         "Remediation":  "Assess the source recommendation and record the result and supporting evidence.",
+                         "SourceUrl":  "https://csrc.nist.gov/projects/security-content-automation-protocol/specifications/xccdf",
+                         "SourceRuleId":  "xccdf_org.example_rule_archive",
+                         "SourcePlatformIds":  [
+
+                                               ]
+                     }
+                 ]
+}

@@ -1,0 +1,15 @@
+{
+  "SchemaVersion": "1.0",
+  "BenchmarkSha256": "715e728616da4f785c15b2974ba860cd9f197a34fe980dba87c84967b252e309",
+  "Role": "MemberServer",
+  "Release": "2022",
+  "Rules": [
+    {
+      "RuleId": "xccdf_org.example_rule_visibility",
+      "Fact": "Firewall.Domain.Enabled",
+      "Operator": "Equals",
+      "Expected": true,
+      "ExpectedDisplay": "Domain firewall profile enabled"
+    }
+  ]
+}
