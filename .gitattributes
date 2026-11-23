@@ -1,0 +1,3 @@
+# The example mapping and its generated baselines record hashes of these exact bytes.
+Tests/Fixtures/windows-server-synthetic.xccdf.xml -text
+Samples/CisImport/mapping.example.json -text

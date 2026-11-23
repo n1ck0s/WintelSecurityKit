@@ -10,11 +10,15 @@ $prefix = $kitRoot + '\'
 $releaseFiles = @(
     'README.md','Build-Kit.ps1','Launch-GUI.cmd','Start-WintelSecurityGui.ps1','Invoke-WintelSecurityAssessment.ps1',
     'Modules\Assessment.psm1','Modules\Collectors.psm1','Modules\Reporting.psm1',
+    'Tools\ConvertFrom-WskXccdf.ps1','Tools\WskXccdfMapping.psm1',
     'Baselines\windows-server-foundation.v1.json','Baselines\microsoft-windows-server-subset.v1.json',
     'Docs\BASELINE-FORMAT.md','Docs\SOURCES.md','Docs\MICROSOFT-SUBSET.md','Docs\PILOT-ACCEPTANCE.md','Docs\STARTUP.md',
+    'Docs\CIS-IMPORT.md','Samples\CisImport\level-1.example.json','Samples\CisImport\level-2.example.json',
+    'Samples\CisImport\mapping.example.json',
     'Samples\exceptions.example.json','Samples\Demo\SecurityAssessment.html','Samples\Demo\SecurityAssessment.json','Samples\Demo\SecurityAssessment.csv',
     'Samples\Demo\README.md','Samples\Demo\CONSOLE.txt','Samples\Demo\Report-preview.png',
-    'Tests\Test-Kit.ps1','Tests\Test-Collectors.ps1','Tests\Test-Gui.ps1'
+    'Tests\Test-Kit.ps1','Tests\Test-Collectors.ps1','Tests\Test-Gui.ps1','Tests\Test-XccdfImport.ps1',
+    'Tests\Fixtures\windows-server-synthetic.xccdf.xml'
 )
 $files = @(foreach ($relative in $releaseFiles) {
     $file = Get-Item -LiteralPath (Join-Path $kitRoot $relative) -ErrorAction Stop
@@ -30,7 +34,7 @@ $manifestPath = Join-Path $kitRoot 'SHA256SUMS.txt'
 $files += Get-Item -LiteralPath $manifestPath
 $dist = Join-Path $kitRoot 'Dist'
 $null = New-Item -ItemType Directory -Path $dist -Force
-$zipPath = Join-Path $dist 'WintelSecurityKit-0.1.2.zip'
+$zipPath = Join-Path $dist 'WintelSecurityKit-0.2.0.zip'
 Add-Type -AssemblyName System.IO.Compression
 $stream = [IO.File]::Open($zipPath,[IO.FileMode]::Create,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
 $archive = $null

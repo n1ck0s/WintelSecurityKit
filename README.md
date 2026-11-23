@@ -1,8 +1,8 @@
-# Wintel Security Kit 0.1.2
+# Wintel Security Kit 0.2.0
 
 A portable PowerShell application for read-only, local Windows Server posture assessment. It provides a Windows Forms interface, command line and self-contained HTML/JSON/CSV reports. No external libraries, installers or internet access are required at runtime.
 
-**See what a scan produces:** [Sample findings and output guide](Samples/Demo/README.md) · [Console transcript](Samples/Demo/CONSOLE.txt) · [CSV](Samples/Demo/SecurityAssessment.csv) · [JSON](Samples/Demo/SecurityAssessment.json). To try the interactive report, extract [the portable kit](Dist/WintelSecurityKit-0.1.2.zip) and open `Samples\Demo\SecurityAssessment.html` in your browser.
+**See what a scan produces:** [Sample findings and output guide](Samples/Demo/README.md) · [Console transcript](Samples/Demo/CONSOLE.txt) · [CSV](Samples/Demo/SecurityAssessment.csv) · [JSON](Samples/Demo/SecurityAssessment.json). To try the interactive report, extract [the portable kit](Dist/WintelSecurityKit-0.2.0.zip) and open `Samples\Demo\SecurityAssessment.html` in your browser.
 
 | Synthetic Server 2022 member server | Pass | Fail | Review | Error | Excepted | Not applicable |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -15,6 +15,8 @@ The bundled foundation profile includes **32 automated checks and 8 manual evide
 For a comparison with published Microsoft values, select `Baselines\microsoft-windows-server-subset.v1.json` in the GUI's **Baseline JSON** field or pass its path to the CLI. This profile checks selected settings from Microsoft's Azure compute security baseline. The [mapping notes](Docs/MICROSOFT-SUBSET.md) identify the source and scope of each setting.
 
 ## Start here
+
+For **CIS Level 1 and Level 2**, import your authorised Windows Server XCCDF file once per release and role. Choose either generated JSON in the GUI's **Baseline JSON** field or use it with `-BaselinePath`. A selected recommendation appears as **Review** until you supply a reviewed automation mapping. [CIS import walkthrough](Docs/CIS-IMPORT.md)
 
 1. Extract the complete kit folder to a local directory on the target server.
 2. Review the source and baseline through your normal software approval process. The package is source code and is not Authenticode-signed; use your organisation's trusted signing and script execution policy.
@@ -118,11 +120,12 @@ For formal CIS work, obtain the exact licensed benchmark/version for each role a
 .\Tests\Test-Kit.ps1
 .\Tests\Test-Collectors.ps1
 .\Tests\Test-Gui.ps1
+.\Tests\Test-XccdfImport.ps1
 .\Build-Kit.ps1
 ```
 
 Tests use synthetic evidence and mocks, not a live host assessment. Coverage includes schema rejection, typed evaluation, role applicability, exceptions, missing evidence, collectors, report escaping and GUI/process behavior.
 
-Build-Kit creates `Dist\WintelSecurityKit-0.1.2.zip`, its SHA-256 sidecar and `SHA256SUMS.txt`. It excludes live reports and test output. Hashes detect alteration; they are not a publisher signature.
+Build-Kit creates `Dist\WintelSecurityKit-0.2.0.zip`, its SHA-256 sidecar and `SHA256SUMS.txt`. It excludes customer XCCDF files, imported baselines, live reports and test output.
 
 **Validation boundary:** PowerShell 5.1 synthetic and mocked tests have run on a Windows workstation. Live pilot validation remains necessary on representative Server 2019/2022/2025 member servers and domain controllers, including Server Core. Follow [PILOT-ACCEPTANCE.md](Docs/PILOT-ACCEPTANCE.md).
