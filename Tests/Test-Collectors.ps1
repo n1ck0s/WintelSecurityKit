@@ -17,13 +17,33 @@ $module = Import-Module (Join-Path $PSScriptRoot '..\Modules\Collectors.psm1') -
         if ($ClassName -eq $script:deniedClass) { throw 'Synthetic Access denied' }
         if ($ClassName -eq 'Win32_OperatingSystem') { return $script:mockOs }
         if ($ClassName -eq 'Win32_ComputerSystem') { return $script:mockComputer }
+        if ($ClassName -eq 'Win32_ComputerSystemProduct') { return $script:mockProduct }
         throw "Unexpected inventory provider $ClassName"
     }
     $script:deniedClass = ''
     $script:mockOs = [pscustomobject]@{ProductType=3;BuildNumber='20348';Version='10.0';Caption='Synthetic server';CSName='SYNTHETIC'}
     $script:mockComputer = [pscustomobject]@{Name='SYNTHETIC';PartOfDomain=$true}
+    $script:mockProduct = [pscustomobject]@{UUID='A1234567-B89C-4DEF-8123-456789ABCDEF'}
     $context = Get-WskContext
     Assert-Collector ($context.Supported -and $context.ServerRelease -eq '2022' -and $context.Role -eq 'MemberServer') 'known member inventory'
+    Assert-Collector ($context.MachineId -ceq 'a1234567-b89c-4def-8123-456789abcdef' -and $context.MachineIdReason -eq '') 'machine UUID is normalized with no warning'
+    foreach ($invalidUuid in @($null, '', 'not-a-uuid', '00000000-0000-0000-0000-000000000000', 'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF')) {
+        $script:mockProduct.UUID = $invalidUuid
+        $withoutIdentity = Get-WskContext
+        Assert-Collector ($withoutIdentity.Supported -and $withoutIdentity.MachineId -eq '' -and $withoutIdentity.MachineIdReason -match 'risk exceptions cannot be applied') 'invalid machine UUID does not block inventory or become an exception key'
+    }
+    $script:mockProduct = [pscustomobject]@{}
+    $withoutIdentity = Get-WskContext
+    Assert-Collector ($withoutIdentity.Supported -and $withoutIdentity.MachineId -eq '' -and $withoutIdentity.MachineIdReason -match 'UUID') 'missing UUID field does not block inventory'
+    $script:mockProduct = $null
+    Assert-Collector ((Get-WskContext).MachineId -eq '') 'empty machine identity provider does not create a key'
+    $script:mockProduct = @([pscustomobject]@{UUID='A1234567-B89C-4DEF-8123-456789ABCDEF'}, [pscustomobject]@{UUID='B1234567-B89C-4DEF-8123-456789ABCDEF'})
+    Assert-Collector ((Get-WskContext).MachineId -eq '') 'ambiguous machine identity provider does not select a key'
+    $script:mockProduct = [pscustomobject]@{UUID='A1234567-B89C-4DEF-8123-456789ABCDEF'}
+    $script:deniedClass = 'Win32_ComputerSystemProduct'
+    $withoutIdentity = Get-WskContext
+    Assert-Collector ($withoutIdentity.Supported -and $withoutIdentity.MachineId -eq '' -and $withoutIdentity.MachineIdReason -match 'Synthetic Access denied') 'machine UUID permission failure is nonfatal and records its cause'
+    $script:deniedClass = ''
     $script:mockComputer.PartOfDomain = $false
     Assert-Collector ((Get-WskContext).Role -eq 'StandaloneServer') 'explicit workgroup membership'
     $script:mockOs.ProductType = 2
@@ -147,9 +167,26 @@ $module = Import-Module (Join-Path $PSScriptRoot '..\Modules\Collectors.psm1') -
     $dcFacts = Get-WskFacts -FactNames @('SecurityPolicy.MinimumPasswordLength')
     Assert-Collector ($dcFacts['SecurityPolicy.MinimumPasswordLength'].State -eq 'Unavailable') 'DC account policies are not inferred from local export'
     Assert-Collector ($script:mockCalls.SecurityPolicy -eq 1) 'DC did not trigger local policy export'
-    function Get-BitLockerVolume { [pscustomobject]@{MountPoint='C:';ProtectionStatus='Off';VolumeStatus='FullyEncrypted'} }
+    $script:mockBitLocker = [pscustomobject]@{MountPoint='C:';ProtectionStatus='Off';VolumeStatus='FullyEncrypted'}
+    function Get-BitLockerVolume { $script:mockBitLocker }
     $suspended = Get-WskFacts -FactNames @('BitLocker.OSProtected')
-    Assert-Collector ($suspended['BitLocker.OSProtected'].Value -eq $false) 'suspended encrypted OS disk does not pass'
+    Assert-Collector ($suspended['BitLocker.OSProtected'].State -eq 'Collected' -and $suspended['BitLocker.OSProtected'].Value -eq $false) 'suspended encrypted OS disk retains a confirmed failure'
+    foreach ($volumeStatus in @('FullyDecrypted', 'EncryptionInProgress', 'DecryptionInProgress', 'EncryptionPaused', 'DecryptionPaused')) {
+        $script:mockBitLocker.ProtectionStatus = 'On'
+        $script:mockBitLocker.VolumeStatus = $volumeStatus
+        $pending = (Get-WskFacts -FactNames @('BitLocker.OSProtected'))['BitLocker.OSProtected']
+        Assert-Collector ($pending.State -eq 'Collected' -and $pending.Value -eq $false) "known incomplete volume status $volumeStatus retains a confirmed failure"
+    }
+    foreach ($unknown in @('Unknown', 'FutureProviderValue', '', $null)) {
+        $script:mockBitLocker.ProtectionStatus = $unknown
+        $script:mockBitLocker.VolumeStatus = 'FullyEncrypted'
+        $uncertain = (Get-WskFacts -FactNames @('BitLocker.OSProtected'))['BitLocker.OSProtected']
+        Assert-Collector ($uncertain.State -eq 'Unavailable' -and $null -eq $uncertain.Value) 'unknown protection status does not become a confirmed failure'
+        $script:mockBitLocker.ProtectionStatus = 'On'
+        $script:mockBitLocker.VolumeStatus = $unknown
+        $uncertain = (Get-WskFacts -FactNames @('BitLocker.OSProtected'))['BitLocker.OSProtected']
+        Assert-Collector ($uncertain.State -eq 'Unavailable' -and $null -eq $uncertain.Value) 'unknown volume status does not become a confirmed failure'
+    }
     $missingSource = Get-WskCachedSource -Cache @{} -Name Missing -Command 'Get-WskNonexistentProviderForTest' -Read { throw 'This must not execute.' }
     Assert-Collector ($missingSource.State -eq 'Unavailable') 'missing Windows command is unavailable'
     Write-Host "PASS: $script:checks offline collector assertions. No host security providers queried."

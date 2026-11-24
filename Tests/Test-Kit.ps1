@@ -28,9 +28,9 @@ $controls = @((New-TestControl 'PASS'),(New-TestControl 'FAIL'),(New-TestControl
 $controls[4].Assessment='Manual'; $controls[4].Fact=$null; $controls[4].Operator=$null; $controls[4].Expected=$null
 $controls[5].Roles=@('DomainController')
 $baseline = [pscustomobject]@{SchemaVersion='1.0';Id='test-baseline';Name='Offline test';Version='1.0.0';Framework='Test';Description='Synthetic fixture';SourceUrls=@('https://learn.microsoft.com/windows-server/');Controls=$controls}
-$context = [pscustomobject]@{ComputerName='TEST-HOST';OSCaption='Synthetic Server 2022';OSVersion='10.0.20348';BuildNumber='20348';ServerRelease='2022';Role='MemberServer';IsAdministrator=$false;CollectedAtUtc=[datetime]::UtcNow.ToString('o');Supported=$true;Is64Bit=$true}
+$context = [pscustomobject]@{ComputerName='TEST-HOST';MachineId='12345678-abcd-5678-9abc-123456789abc';OSCaption='Synthetic Server 2022';OSVersion='10.0.20348';BuildNumber='20348';ServerRelease='2022';Role='MemberServer';IsAdministrator=$false;CollectedAtUtc=[datetime]::UtcNow.ToString('o');Supported=$true;Is64Bit=$true}
 $facts=@{PASS=(New-TestFact $true);FAIL=(New-TestFact $false);ERROR=(New-TestFact $null 'Error')}
-$exception=[pscustomobject]@{ControlId='FAIL';ComputerName='TEST-HOST';BaselineId='test-baseline';BaselineVersion='1.0.0';Reason='Approved test';Owner='Test owner';Ticket='TEST-1';ExpiresOn='2099-12-31'}
+$exception=[pscustomobject]@{ControlId='FAIL';ComputerName='TEST-HOST';ClientName='Customer A';MachineId=$context.MachineId;BaselineId='test-baseline';BaselineVersion='1.0.0';Reason='Approved test';Owner='Test owner';Ticket='TEST-1';ExpiresOn='2099-12-31'}
 
 Test-Case 'Parse every script without executing collectors' {
     foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object { $_.Extension -in @('.ps1','.psm1') }) {
@@ -91,34 +91,108 @@ Test-Case 'Malformed fact is an error' {
     Assert-True (($r.Results | Where-Object Id -eq 'PASS').Status -eq 'Error')
 }
 Test-Case 'Exception preserves underlying failure and score' {
-    $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($exception) -Mode Demo
+    $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($exception) -ClientName 'Customer A' -Mode Demo
     Assert-True ($r.Summary.Excepted -eq 1 -and $r.Summary.Fail -eq 0 -and $r.Summary.UnderlyingFail -eq 1 -and $r.Summary.PassRatePercent -eq 50)
 }
 Test-Case 'Expired exception cannot hide a failure' {
-    $e=Copy-JsonObject $exception; $e.ExpiresOn='2000-01-01'; $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -Mode Demo
+    $e=Copy-JsonObject $exception; $e.ExpiresOn='2000-01-01'; $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -ClientName 'Customer A' -Mode Demo
     Assert-True ($r.Summary.Excepted -eq 0 -and $r.Summary.Fail -eq 1)
 }
 Test-Case 'Exception remains valid through its UTC expiry date' {
-    $e=Copy-JsonObject $exception; $e.ExpiresOn='2026-11-14'; $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -Mode Demo -AsOfUtc ([datetime]'2026-11-14T23:59:59Z')
+    $e=Copy-JsonObject $exception; $e.ExpiresOn='2026-11-14'; $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -ClientName 'Customer A' -Mode Demo -AsOfUtc ([datetime]'2026-11-14T23:59:59Z')
     Assert-True ($r.Summary.Excepted -eq 1)
 }
 Test-Case 'Exception cannot cross host boundaries' {
-    $e=Copy-JsonObject $exception; $e.ComputerName='ANOTHER'; $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -Mode Demo
+    $e=Copy-JsonObject $exception; $e.ComputerName='ANOTHER'; $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -ClientName 'Customer A' -Mode Demo
     Assert-True ($r.Summary.Excepted -eq 0)
 }
 Test-Case 'Exception cannot cross baseline versions' {
-    $e=Copy-JsonObject $exception; $e.BaselineVersion='9.0.0'; $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -Mode Demo
+    $e=Copy-JsonObject $exception; $e.BaselineVersion='9.0.0'; $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -ClientName 'Customer A' -Mode Demo
     Assert-True ($r.Summary.Excepted -eq 0)
 }
 Test-Case 'Exception cannot turn missing evidence into accepted risk' {
-    $e=Copy-JsonObject $exception; $e.ControlId='MISSING'; $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -Mode Demo
+    $e=Copy-JsonObject $exception; $e.ControlId='MISSING'; $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -ClientName 'Customer A' -Mode Demo
     Assert-True (($r.Results | Where-Object Id -eq 'MISSING').Status -eq 'Review')
 }
 Test-Case 'Exception JSON validates required fields and duplicates' {
-    $d=[pscustomobject]@{SchemaVersion='1.0';Exceptions=@($exception)}; $p=Save-Json $d 'exceptions-valid.json'; $e=@(Import-WskExceptions $p); Assert-True ($e.Count -eq 1)
+    $d=[pscustomobject]@{SchemaVersion='1.1';Exceptions=@($exception)}; $p=Save-Json $d 'exceptions-valid.json'; $e=@(Import-WskExceptions $p); Assert-True ($e.Count -eq 1)
+    $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions $e -ClientName 'Customer A' -Mode Demo; Assert-True ($r.Summary.Excepted -eq 1)
     $d.Exceptions=@($exception,$exception); $p=Save-Json $d 'exceptions-duplicate.json'; Assert-Throws { Import-WskExceptions $p }
     $d.Exceptions=@((Copy-JsonObject $exception)); $d.Exceptions[0].Owner=''; $p=Save-Json $d 'exceptions-owner.json'; Assert-Throws { Import-WskExceptions $p }
     $d.Exceptions[0].Owner='Owner'; $d.Exceptions[0].ComputerName='*'; $p=Save-Json $d 'exceptions-wildcard.json'; Assert-Throws { Import-WskExceptions $p }
+}
+Test-Case 'Exceptions cannot cross customers with the same hostname and machine UUID' {
+    foreach ($client in @('Customer B','customer a','Customer A ','')) {
+        $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($exception) -ClientName $client -Mode Demo
+        Assert-True ($r.Summary.Excepted -eq 0 -and $r.Summary.Fail -eq 1)
+    }
+}
+Test-Case 'Exceptions cannot cross machines with the same hostname and customer' {
+    $other=Copy-JsonObject $context; $other.MachineId='22345678-abcd-5678-9abc-123456789abc'
+    $r=Invoke-WskEvaluation $baseline $other $facts -Exceptions @($exception) -ClientName 'Customer A' -Mode Demo
+    Assert-True ($r.Summary.Excepted -eq 0 -and $r.Summary.Fail -eq 1)
+}
+Test-Case 'Unavailable machine identity leaves ordinary results and rejects exceptions' {
+    foreach ($value in @('','not-a-uuid','00000000-0000-0000-0000-000000000000','ffffffff-ffff-ffff-ffff-ffffffffffff')) {
+        $c=Copy-JsonObject $context; $c.MachineId=$value
+        $r=Invoke-WskEvaluation $baseline $c $facts -Exceptions @($exception) -ClientName 'Customer A' -Mode Demo
+        Assert-True ($r.Summary.Excepted -eq 0 -and $r.Summary.Fail -eq 1 -and $r.Summary.Pass -eq 1)
+        Assert-True (@($r.Warnings | Where-Object { $_ -like '*lacks a usable customer or machine identity*' }).Count -eq 1)
+    }
+    $c=Copy-JsonObject $context; $c.PSObject.Properties.Remove('MachineId')
+    $r=Invoke-WskEvaluation $baseline $c $facts -Exceptions @($exception) -ClientName 'Customer A' -Mode Demo
+    Assert-True ($r.Summary.Excepted -eq 0 -and $r.Summary.Fail -eq 1)
+}
+Test-Case 'Direct exception objects must carry valid customer and machine identity' {
+    foreach ($property in @('ClientName','MachineId')) {
+        $e=Copy-JsonObject $exception; $e.PSObject.Properties.Remove($property)
+        $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -ClientName 'Customer A' -Mode Demo
+        Assert-True ($r.Summary.Excepted -eq 0 -and $r.Summary.Fail -eq 1)
+    }
+    foreach ($value in @('not-a-uuid','00000000-0000-0000-0000-000000000000','ffffffff-ffff-ffff-ffff-ffffffffffff')) {
+        $e=Copy-JsonObject $exception; $e.MachineId=$value
+        $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions @($e) -ClientName 'Customer A' -Mode Demo
+        Assert-True ($r.Summary.Excepted -eq 0 -and $r.Summary.Fail -eq 1)
+    }
+}
+Test-Case 'Legacy exception ledgers are ignored even if newer fields were added' {
+    $d=[pscustomobject]@{SchemaVersion='1.0';Exceptions=@((Copy-JsonObject $exception))}
+    foreach ($hasNewFields in @($true,$false)) {
+        if (-not $hasNewFields) { $d.Exceptions[0].PSObject.Properties.Remove('ClientName'); $d.Exceptions[0].PSObject.Properties.Remove('MachineId') }
+        $p=Save-Json $d 'exceptions-legacy.json'; $e=@(Import-WskExceptions $p)
+        $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions $e -ClientName 'Customer A' -Mode Demo
+        Assert-True ($r.Summary.Excepted -eq 0 -and $r.Summary.Fail -eq 1)
+        Assert-True (@($r.Warnings | Where-Object { $_ -like '*Migrate the ledger to schema 1.1*' }).Count -eq 1)
+    }
+}
+Test-Case 'Bound exception schema rejects missing customer and unusable UUIDs' {
+    foreach ($value in @('','not-a-uuid','00000000-0000-0000-0000-000000000000','ffffffff-ffff-ffff-ffff-ffffffffffff')) {
+        $e=Copy-JsonObject $exception; $e.MachineId=$value
+        $d=[pscustomobject]@{SchemaVersion='1.1';Exceptions=@($e)}; $p=Save-Json $d 'exceptions-invalid-uuid.json'
+        Assert-Throws { Import-WskExceptions $p }
+    }
+    foreach ($property in @('ClientName','MachineId')) {
+        $e=Copy-JsonObject $exception; $e.PSObject.Properties.Remove($property)
+        $d=[pscustomobject]@{SchemaVersion='1.1';Exceptions=@($e)}; $p=Save-Json $d 'exceptions-missing-scope.json'
+        Assert-Throws { Import-WskExceptions $p }
+    }
+}
+Test-Case 'UUID formatting is normalized and hostname comparison ignores case' {
+    $e=Copy-JsonObject $exception; $e.MachineId='{12345678-ABCD-5678-9ABC-123456789ABC}'; $e.ComputerName='test-host'
+    $d=[pscustomobject]@{SchemaVersion='1.1';Exceptions=@($e)}; $p=Save-Json $d 'exceptions-normalized.json'; $read=@(Import-WskExceptions $p)
+    Assert-True ($read[0].MachineId -ceq $context.MachineId)
+    $r=Invoke-WskEvaluation $baseline $context $facts -Exceptions $read -ClientName 'Customer A' -Mode Demo
+    Assert-True ($r.Summary.Excepted -eq 1)
+}
+Test-Case 'Ledger duplicates include customer and normalized machine UUID' {
+    $e=Copy-JsonObject $exception; $e.ClientName='Customer B'
+    $d=[pscustomobject]@{SchemaVersion='1.1';Exceptions=@($exception,$e)}; $p=Save-Json $d 'exceptions-different-client.json'
+    Assert-True (@(Import-WskExceptions $p).Count -eq 2)
+    $e.ClientName='customer a'; $p=Save-Json $d 'exceptions-case-client.json'; Assert-True (@(Import-WskExceptions $p).Count -eq 2)
+    $e.ClientName='Customer A'; $e.MachineId='22345678-abcd-5678-9abc-123456789abc'
+    $p=Save-Json $d 'exceptions-different-machine.json'; Assert-True (@(Import-WskExceptions $p).Count -eq 2)
+    $e.MachineId='{12345678-ABCD-5678-9ABC-123456789ABC}'; $e.ComputerName='test-host'
+    $p=Save-Json $d 'exceptions-normalized-duplicate.json'; Assert-Throws { Import-WskExceptions $p }
 }
 Test-Case 'Numeric comparison operators' {
     foreach ($spec in @(@('GreaterOrEqual',14,14),@('LessOrEqual',3,2),@('Between',@(1,5),5),@('In',@(1,2),2),@('NotEquals',0,1),@('Contains','x',@('x','y')))) {
