@@ -1,8 +1,8 @@
-# Wintel Security Kit 0.2.0
+# Wintel Security Kit 0.2.1
 
 A portable PowerShell application for read-only, local Windows Server posture assessment. It provides a Windows Forms interface, command line and self-contained HTML/JSON/CSV reports. No external libraries, installers or internet access are required at runtime.
 
-**See what a scan produces:** [Sample findings and output guide](Samples/Demo/README.md) · [Console transcript](Samples/Demo/CONSOLE.txt) · [CSV](Samples/Demo/SecurityAssessment.csv) · [JSON](Samples/Demo/SecurityAssessment.json). To try the interactive report, extract [the portable kit](Dist/WintelSecurityKit-0.2.0.zip) and open `Samples\Demo\SecurityAssessment.html` in your browser.
+**See what a scan produces:** [Sample findings and output guide](Samples/Demo/README.md) · [Console transcript](Samples/Demo/CONSOLE.txt) · [CSV](Samples/Demo/SecurityAssessment.csv) · [JSON](Samples/Demo/SecurityAssessment.json). To try the interactive report, extract [the portable kit](Dist/WintelSecurityKit-0.2.1.zip) and open `Samples\Demo\SecurityAssessment.html` in your browser.
 
 | Synthetic Server 2022 member server | Pass | Fail | Review | Error | Excepted | Not applicable |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -36,7 +36,7 @@ For **CIS Level 1 and Level 2**, import your authorised Windows Server XCCDF fil
 .\Invoke-WintelSecurityAssessment.ps1 -BaselinePath '.\Baselines\microsoft-windows-server-subset.v1.json'
 
 # Use a reviewed customer profile and approved exceptions.
-.\Invoke-WintelSecurityAssessment.ps1 -BaselinePath '.\Baselines\customer.json' -ExceptionsPath '.\client-exceptions.json'
+.\Invoke-WintelSecurityAssessment.ps1 -ClientName 'Customer A' -BaselinePath '.\Baselines\customer.json' -ExceptionsPath '.\client-exceptions.json'
 ```
 
 **Run assessment** opens a visible Windows PowerShell console. Review any Windows security prompts there. On completion, use **Open HTML report** in the GUI. If the console closes before you can read the error, run `.\Invoke-WintelSecurityAssessment.ps1` directly in an open Windows PowerShell window. [Startup troubleshooting](Docs/STARTUP.md)
@@ -64,7 +64,7 @@ Optional components such as Defender and BitLocker may be absent. Missing provid
 - Local-account password and lockout policy on member and standalone servers.
 - Explicit UAC, legacy authentication, WDigest, PowerShell logging, inactivity, installer, audit-precedence and LLMNR settings.
 - Manual prompts for MFA, protected backups and recovery, patch/vulnerability management, application control, effective domain policy, alternate endpoint security, DC LDAP security and remote-access exposure.
-- Expiring, host-specific exceptions with reason, accountable owner and ticket.
+- Expiring exceptions bound to the customer, machine UUID, host and baseline, with reason, accountable owner and ticket.
 
 Domain controllers exclude local-account policy checks. Effective domain and fine-grained password policies remain manual; a local export cannot prove every user's resultant policy.
 
@@ -87,7 +87,13 @@ Each scan creates a unique folder with `SecurityAssessment.html`, `.json` and `.
 
 ## Exceptions and manual evidence
 
-Copy `Samples\exceptions.example.json` and replace all placeholders. Every entry must match the exact computer name, baseline ID, baseline version and control ID. Wildcards are rejected. `ExpiresOn` is valid through that UTC date. Expired or mismatched entries are ignored with a warning. Only confirmed failures can be excepted; unknown evidence cannot become a pass. The kit records supplied approval information; it does not authenticate the approver or ticket.
+Copy `Samples\exceptions.example.json` and replace all placeholders. Exception schema **1.1** requires `ClientName` and `MachineId` alongside the computer name, baseline ID, baseline version and control ID. Run an assessment without exceptions first, then copy `ClientName`, `Context.MachineId` and `Context.ComputerName` from its JSON report. Supply the same `-ClientName` on future runs (or the GUI client field); customer names match exactly, including case and spaces. Use a unique, consistent customer identifier here.
+
+`MachineId` is the normalized SMBIOS UUID read from `Win32_ComputerSystemProduct`. An unavailable, malformed, all-zero or all-F UUID leaves ordinary assessments running but prevents exceptions from applying. Check `Context.MachineIdReason` in the JSON if it is empty. Ensure VM clones have unique UUIDs; changing hardware identity or rebuilding a VM requires exception review. These identifiers scope supplied approvals; they do not authenticate the approver or ticket.
+
+**Upgrading from 0.2.0:** schema 1.0 exception ledgers are read but their entries are ignored with warnings. Reapprove each entry for its customer and machine, add the two identity fields, and change the document's `SchemaVersion` to `1.1`. Do not bulk-copy an exception across customers based only on a shared hostname.
+
+Wildcards in computer names are rejected. `ExpiresOn` is valid through that UTC date. Expired or mismatched entries are ignored with a warning. Only confirmed failures can be excepted; unknown evidence remains unresolved.
 
 Manual checks remain Review. Record their assessment and evidence in your service-management or GRC system; this release does not write manual decisions back into a report.
 
@@ -126,6 +132,6 @@ For formal CIS work, obtain the exact licensed benchmark/version for each role a
 
 Tests use synthetic evidence and mocks, not a live host assessment. Coverage includes schema rejection, typed evaluation, role applicability, exceptions, missing evidence, collectors, report escaping and GUI/process behavior.
 
-Build-Kit creates `Dist\WintelSecurityKit-0.2.0.zip`, its SHA-256 sidecar and `SHA256SUMS.txt`. It excludes customer XCCDF files, imported baselines, live reports and test output.
+Build-Kit creates `Dist\WintelSecurityKit-0.2.1.zip`, its SHA-256 sidecar and `SHA256SUMS.txt`. It excludes customer XCCDF files, imported baselines, live reports and test output.
 
 **Validation boundary:** PowerShell 5.1 synthetic and mocked tests have run on a Windows workstation. Live pilot validation remains necessary on representative Server 2019/2022/2025 member servers and domain controllers, including Server Core. Follow [PILOT-ACCEPTANCE.md](Docs/PILOT-ACCEPTANCE.md).
