@@ -1,9 +1,11 @@
 {
-  "SchemaVersion": "1.0",
+  "SchemaVersion": "1.1",
   "Exceptions": [
     {
       "ControlId": "REPLACE-WITH-CONTROL-ID",
       "ComputerName": "REPLACE-WITH-EXACT-HOST",
+      "ClientName": "REPLACE-WITH-EXACT-CLIENT-NAME",
+      "MachineId": "11111111-2222-3333-4444-555555555555",
       "BaselineId": "windows-server-foundation",
       "BaselineVersion": "1.0.0",
       "Reason": "Replace with approved risk, compensating controls and review rationale.",
