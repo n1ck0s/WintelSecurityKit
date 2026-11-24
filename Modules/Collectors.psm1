@@ -43,6 +43,21 @@ function Get-WskContext {
             '26100' { $release = '2025' }
         }
     }
+    # UUID inventory binds risk exceptions to a machine. Its absence must not block a scan.
+    $machineId = ''
+    $machineIdReason = ''
+    try {
+        $products = @(Get-CimInstance -ClassName Win32_ComputerSystemProduct -Property UUID -ErrorAction Stop)
+        $uuid = [guid]::Empty
+        if ($products.Count -ne 1 -or $null -eq $products[0] -or
+            $null -eq $products[0].PSObject.Properties['UUID'] -or
+            -not [guid]::TryParse([string]$products[0].UUID, [ref]$uuid) -or
+            $uuid -eq [guid]::Empty -or $uuid -eq [guid]'ffffffff-ffff-ffff-ffff-ffffffffffff') {
+            throw 'Win32_ComputerSystemProduct did not return one usable UUID.'
+        }
+        $machineId = $uuid.ToString('D').ToLowerInvariant()
+    }
+    catch { $machineIdReason = "Machine identity unavailable; risk exceptions cannot be applied. $($_.Exception.Message)" }
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     try {
         $principal = New-Object Security.Principal.WindowsPrincipal($identity)
@@ -51,6 +66,8 @@ function Get-WskContext {
     finally { $identity.Dispose() }
     [pscustomobject]@{
         ComputerName = [string]$os.CSName
+        MachineId = $machineId
+        MachineIdReason = $machineIdReason
         OSCaption = [string]$os.Caption
         OSVersion = [string]$os.Version
         BuildNumber = [string]$os.BuildNumber
@@ -255,7 +272,13 @@ function Get-WskFacts {
                     else {
                         $protection = [string]$volumes[0].ProtectionStatus
                         $volume = [string]$volumes[0].VolumeStatus
-                        $facts[$name] = New-WskFact -State Collected -Value ($protection -eq 'On' -and $volume -eq 'FullyEncrypted') -Evidence "OS volume protection=$protection; volume status=$volume. Other disks are not assessed."
+                        $evidence = "OS volume protection=$protection; volume status=$volume. Other disks are not assessed."
+                        if ($protection -notin @('On', 'Off') -or $volume -notin @('FullyDecrypted', 'FullyEncrypted', 'EncryptionInProgress', 'DecryptionInProgress', 'EncryptionPaused', 'DecryptionPaused')) {
+                            $facts[$name] = New-WskFact -State Unavailable -Value $null -Evidence $evidence -Reason 'The BitLocker provider returned an unknown or unrecognized status; protection could not be determined.'
+                        }
+                        else {
+                            $facts[$name] = New-WskFact -State Collected -Value ($protection -eq 'On' -and $volume -eq 'FullyEncrypted') -Evidence $evidence
+                        }
                     }
                 }
                 continue

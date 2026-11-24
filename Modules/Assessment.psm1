@@ -77,6 +77,14 @@ function Import-WskBaseline {
     return $baseline
 }
 
+function ConvertTo-WskMachineId {
+    param($Value)
+    $id = [guid]::Empty
+    if ($Value -isnot [string] -or -not [guid]::TryParse($Value, [ref]$id) -or
+        $id -eq [guid]::Empty -or $id -eq [guid]'ffffffff-ffff-ffff-ffff-ffffffffffff') { return '' }
+    return $id.ToString('D')
+}
+
 function Import-WskExceptions {
     [CmdletBinding()]
     param([string]$Path)
@@ -84,19 +92,31 @@ function Import-WskExceptions {
     $document = Read-WskJson $Path
     Assert-WskProperty $document 'SchemaVersion'
     Assert-WskProperty $document 'Exceptions'
-    if ($document.SchemaVersion -cne '1.0' -or $document.Exceptions -isnot [array]) { throw 'Invalid exceptions document schema.' }
-    $seen = @{}
+    if ($document.SchemaVersion -cnotin @('1.0','1.1') -or $document.Exceptions -isnot [array]) { throw 'Invalid exceptions document schema. Expected 1.1 (or legacy 1.0 for migration).' }
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
     foreach ($item in $document.Exceptions) {
         foreach ($name in @('ControlId','ComputerName','BaselineId','BaselineVersion','Reason','Owner','Ticket','ExpiresOn')) {
             Assert-WskProperty $item $name
             if ($item.$name -isnot [string] -or [string]::IsNullOrWhiteSpace($item.$name)) { throw "Exception requires a nonempty '$name'." }
         }
         if ($item.ComputerName -match '[*?\[\]]') { throw 'Exception ComputerName must identify one exact host; wildcards are not supported.' }
+        if ($document.SchemaVersion -ceq '1.1') {
+            foreach ($name in @('ClientName','MachineId')) {
+                Assert-WskProperty $item $name
+                if ($item.$name -isnot [string] -or [string]::IsNullOrWhiteSpace($item.$name)) { throw "Exception requires a nonempty '$name'." }
+            }
+            $machineId = ConvertTo-WskMachineId $item.MachineId
+            if (-not $machineId) { throw 'Exception MachineId must be a valid machine UUID; empty and all-ones placeholder UUIDs are not accepted.' }
+            $item.MachineId = $machineId
+        }
+        # Preserve the source schema even if a legacy document supplied newer-looking fields.
+        $item | Add-Member -NotePropertyName WskExceptionSchemaVersion -NotePropertyValue $document.SchemaVersion -Force
         $date = [datetime]::MinValue
         if (-not [datetime]::TryParseExact($item.ExpiresOn,'yyyy-MM-dd',[cultureinfo]::InvariantCulture,[Globalization.DateTimeStyles]::None,[ref]$date)) { throw 'Exception ExpiresOn must use yyyy-MM-dd (valid through that UTC date).' }
-        $key = '{0}|{1}|{2}|{3}' -f $item.ComputerName,$item.BaselineId,$item.BaselineVersion,$item.ControlId
-        if ($seen.ContainsKey($key)) { throw "Duplicate exception '$key'." }
-        $seen[$key] = $true
+        $scope = @($item.ComputerName.ToUpperInvariant(),$item.BaselineId,$item.BaselineVersion,$item.ControlId.ToUpperInvariant())
+        if ($document.SchemaVersion -ceq '1.1') { $scope += @($item.ClientName,$item.MachineId) }
+        $key = ConvertTo-Json -InputObject $scope -Compress
+        if (-not $seen.Add($key)) { throw "Duplicate exception '$key'." }
         Write-Output $item
     }
 }
@@ -142,6 +162,28 @@ function Invoke-WskEvaluation {
     $warnings.Add('This baseline is a scoped posture assessment. It does not certify CIS, Microsoft baseline, STIG or Essential Eight compliance. Check the baseline version, applicability and manual evidence.')
     $validExceptions = @{}
     foreach ($exception in $Exceptions) {
+        $schema = $exception.PSObject.Properties['WskExceptionSchemaVersion']
+        if ($null -ne $schema -and $schema.Value -cne '1.1') {
+            $warnings.Add("Legacy exception for '$($exception.ControlId)' ignored. Migrate the ledger to schema 1.1 with an approved ClientName and MachineId from this machine's report.")
+            continue
+        }
+        $clientProperty = $exception.PSObject.Properties['ClientName']
+        $machineProperty = $exception.PSObject.Properties['MachineId']
+        $contextMachineProperty = $Context.PSObject.Properties['MachineId']
+        $exceptionMachineId = ''; $contextMachineId = ''
+        if ($null -ne $machineProperty) { $exceptionMachineId = ConvertTo-WskMachineId $machineProperty.Value }
+        if ($null -ne $contextMachineProperty) { $contextMachineId = ConvertTo-WskMachineId $contextMachineProperty.Value }
+        if ($null -eq $clientProperty -or $clientProperty.Value -isnot [string] -or
+            [string]::IsNullOrWhiteSpace($clientProperty.Value) -or [string]::IsNullOrWhiteSpace($ClientName) -or
+            -not $exceptionMachineId -or -not $contextMachineId) {
+            $warnings.Add("Exception for '$($exception.ControlId)' lacks a usable customer or machine identity; ignored. Use schema 1.1 and the ClientName and Context.MachineId from this machine's report.")
+            continue
+        }
+        if (-not [string]::Equals($clientProperty.Value,$ClientName,[StringComparison]::Ordinal) -or
+            $exceptionMachineId -cne $contextMachineId) {
+            $warnings.Add("Exception for '$($exception.ControlId)' does not match this customer and machine identity; ignored.")
+            continue
+        }
         if ($exception.ComputerName -ine $Context.ComputerName -or $exception.BaselineId -cne $Baseline.Id -or $exception.BaselineVersion -cne $Baseline.Version) { $warnings.Add("Exception for '$($exception.ControlId)' does not match this host and baseline version; ignored."); continue }
         if ($exception.ControlId -notin @($Baseline.Controls.Id)) { $warnings.Add("Exception references unknown control '$($exception.ControlId)'; ignored."); continue }
         $expiry = [datetime]::ParseExact($exception.ExpiresOn,'yyyy-MM-dd',[cultureinfo]::InvariantCulture)
@@ -201,7 +243,7 @@ function Invoke-WskEvaluation {
         if ($Baseline.PSObject.Properties[$key]) { $baselineInfo[$key] = $Baseline.$key }
     }
     return [pscustomobject][ordered]@{
-        SchemaVersion='1.0'; KitVersion='0.2.0'; RunId=$RunId.ToString('N'); StartedAtUtc=$StartedAtUtc; CompletedAtUtc=[datetime]::UtcNow.ToString('o')
+        SchemaVersion='1.0'; KitVersion='0.2.1'; RunId=$RunId.ToString('N'); StartedAtUtc=$StartedAtUtc; CompletedAtUtc=[datetime]::UtcNow.ToString('o')
         Mode=$Mode; ClientName=$ClientName; Context=$Context
         Baseline=[pscustomobject]$baselineInfo
         Summary=[pscustomobject]$summary; Results=$results.ToArray(); Warnings=$warnings.ToArray()
@@ -236,7 +278,7 @@ function New-WskDemoSnapshot {
         $facts[$c.Fact] = [pscustomobject]@{State=$state;Value=$value;Evidence='SYNTHETIC sample evidence; no host queried.';Reason=$reason}
     }
     $builds = @{'2019'='17763';'2022'='20348';'2025'='26100'}
-    $context = [pscustomobject]@{ComputerName="WSK-DEMO-$Release";OSCaption="SYNTHETIC Windows Server $Release";OSVersion="10.0.$($builds[$Release])";BuildNumber=$builds[$Release];ServerRelease=$Release;Role=$Role;IsAdministrator=$false;CollectedAtUtc=[datetime]::UtcNow.ToString('o');Supported=$true;Is64Bit=$true}
+    $context = [pscustomobject]@{ComputerName="WSK-DEMO-$Release";MachineId='12345678-1234-5678-9abc-123456789abc';MachineIdReason='SYNTHETIC identity; no host queried.';OSCaption="SYNTHETIC Windows Server $Release";OSVersion="10.0.$($builds[$Release])";BuildNumber=$builds[$Release];ServerRelease=$Release;Role=$Role;IsAdministrator=$false;CollectedAtUtc=[datetime]::UtcNow.ToString('o');Supported=$true;Is64Bit=$true}
     return [pscustomobject]@{Context=$context;Facts=$facts}
 }
 
