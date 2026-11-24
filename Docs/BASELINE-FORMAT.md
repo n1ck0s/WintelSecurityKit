@@ -56,7 +56,7 @@ Strings are never coerced to booleans or numbers. A type mismatch produces Error
 | `SmbClient.EnableInsecureGuestLogons` | Boolean |
 | `Defender.AntivirusEnabled`, `Defender.RealTimeProtectionEnabled` | Boolean; Microsoft Defender only |
 | `Defender.AntivirusSignatureAge` | Numeric age in days |
-| `BitLocker.OSProtected` | Boolean: protection On and volume FullyEncrypted; OS volume only |
+| `BitLocker.OSProtected` | Boolean: protection On and volume FullyEncrypted; OS volume only. Unknown or unrecognized status becomes Review; known Off or incomplete encryption is false. |
 | `SecurityPolicy.MinimumPasswordLength`, `PasswordComplexity`, `PasswordHistorySize`, `LockoutBadCount`, `LockoutDuration`, `ResetLockoutCount`, `ClearTextPassword` | Prefix each name with `SecurityPolicy.`; integer from local-account merged security policy; unavailable on DCs |
 | `Registry\|<HKLM subkey>\|<value name>` | Actual registry value through Registry64; delimiter is a literal pipe, no backslash escaping |
 
